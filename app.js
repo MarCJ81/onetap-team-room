@@ -732,7 +732,6 @@
 
     /* wall */
     s.push('<rect x="0" y="0" width="220" height="76" fill="#f3f8fe"/>');
-    s.push('<rect x="0" y="0" width="220" height="76" fill="url(#' + glw + ')" opacity="' + (live ? .28 : .1) + '"/>');
     s.push('<rect x="0" y="72" width="220" height="5" fill="#e2eaf5"/>');
     s.push('<path d="M6 0v76" stroke="#dde7f4" stroke-width="2"/>');
     s.push('<path d="M214 0v76" stroke="#dde7f4" stroke-width="2"/>');
@@ -900,11 +899,11 @@
       + wsScene({ accent: accent, look: look, present: !!holder, state: st })
       + '<span class="monitor__head"><span class="monitor__glyph" aria-hidden="true">' + esc(String(meta.glyph || '').slice(0, 1)) + '</span>'
       + '<span class="monitor__name">' + esc(label) + '</span></span>'
-      + '<span class="monitor__badge"><i aria-hidden="true"></i>' + esc(monitorBadge(st)) + '</span>'
       + '</div>'
       + '<div class="monitor__plate"><span class="monitor__role">' + esc(holdName) + '</span>'
       + '<span class="monitor__line">' + esc(line) + '</span></div>'
-      + '<div class="monitor__foot"><span class="monitor__stat">' + esc(t('hq.monitor.items', { d: doneItems, t: items.length })) + '</span></div>'
+      + '<div class="monitor__foot"><span class="monitor__badge"><i aria-hidden="true"></i>' + esc(monitorBadge(st)) + '</span>'
+      + '<span class="monitor__stat">' + esc(t('hq.monitor.items', { d: doneItems, t: items.length })) + '</span></div>'
       + '</li>';
   }
 

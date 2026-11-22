@@ -1326,7 +1326,7 @@ svg { display: block; }
   display: flex;
   align-items: center;
   gap: 4px;
-  max-width: calc(100% - 68px);
+  max-width: calc(100% - 12px);
   padding: 2px 7px 2px 3px;
   border: 1px solid rgba(15, 23, 42, .07);
   border-radius: 999px;
@@ -1352,18 +1352,12 @@ svg { display: block; }
   text-overflow: ellipsis;
 }
 .monitor__badge {
-  position: absolute;
-  top: 6px; right: 5px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
-  border: 1px solid rgba(15, 23, 42, .07);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .94);
-  font-size: 9px;
+  font-size: 8.8px;
   font-weight: 800;
-  letter-spacing: .06em;
+  letter-spacing: .05em;
   color: var(--muted-2);
   white-space: nowrap;
 }
@@ -1388,13 +1382,23 @@ svg { display: block; }
   word-break: keep-all;
   min-height: 13.4px;
 }
-.monitor__foot { display: flex; align-items: center; justify-content: flex-end; padding: 0 8px 5px; }
+.monitor__foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 8px 5px; }
+.monitor.is-live .monitor__scene::after {
+  content: '';
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, .16);
+  animation: beacon 1.2s ease-in-out infinite;
+}
 .monitor__stat { font-size: 9.2px; color: var(--muted-2); white-space: nowrap; }
 
 .monitor.is-current { border-color: var(--accent-line); }
 .monitor.is-current .monitor__glyph { background: var(--accent-soft); color: var(--accent-ink); }
 .monitor.is-live { border-color: var(--danger-line); box-shadow: 0 0 0 3px rgba(220, 38, 38, .08); }
-.monitor.is-live .monitor__badge { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line); }
+.monitor.is-live .monitor__badge { color: var(--danger); }
 .monitor.is-live .monitor__badge i { background: var(--danger); animation: beacon 1.2s ease-in-out infinite; }
 .monitor.is-live .monitor__glyph { background: #fff; color: var(--danger); }
 .monitor.is-done { border-color: var(--line-2); }
@@ -1478,7 +1482,7 @@ svg { display: block; }
 }
 .mroom__seats { display: flex; justify-content: center; align-items: flex-end; gap: 4px; min-width: 0; }
 .mroom__seats--back { margin-bottom: -30px; }
-.mroom__seats--front { margin-top: -22px; }
+.mroom__seats--front { z-index: 2; margin-top: -22px; }
 
 .seat {
   flex: 1 1 0;
@@ -1497,6 +1501,8 @@ svg { display: block; }
 .seat__avatar { display: block; width: 100%; max-width: 72px; }
 .seat__avatar .fig { display: block; width: 100%; height: auto; }
 .seat__body {
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1535,6 +1541,7 @@ svg { display: block; }
 
 .mroom__table {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
