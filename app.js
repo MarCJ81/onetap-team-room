@@ -535,11 +535,25 @@
     auditor: { skin: '#f0c29f', hair: '#3d3152', style: 'bun', shirt: '#5b21b6', collar: 'vest', gear: 'headset', mouth: 'smirk' }
   };
 
+  var HAIR_VARIANTS = ['#26303d', '#4a3428', '#5b4636', '#3b2f4a', '#1f2937', '#6d5642', '#7a4a2c', '#334155'];
+  var STYLE_VARIANTS = ['part', 'buzz', 'side', 'bun', 'cap'];
+  var MOUTH_VARIANTS = ['smile', 'grin', 'smirk', 'flat'];
+
   function lookFor(role) {
     var base = LOOKS[(role && role.kind) || 'pm'] || LOOKS.pm;
     var out = {};
     Object.keys(base).forEach(function (k) { out[k] = base[k]; });
     out.accent = (role && role.accent) || base.shirt;
+    /* A role the user adds inherits its kind's uniform; the face is its own, so
+       two added roles of the same kind never look like the same person. */
+    if (role && role.custom) {
+      var h = 0;
+      String(role.id || '').split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) % 9973; });
+      out.hair = HAIR_VARIANTS[h % HAIR_VARIANTS.length];
+      out.style = STYLE_VARIANTS[h % STYLE_VARIANTS.length];
+      out.mouth = MOUTH_VARIANTS[Math.floor(h / 7) % MOUTH_VARIANTS.length];
+      out.gear = h % 2 ? 'glasses' : (base.gear === 'cap' ? 'glasses' : base.gear);
+    }
     return out;
   }
 
