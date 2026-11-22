@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보 처리 · OneTap AI Team Room</title>
+<meta name="description" content="원탭 AI 팀 회의실의 개인정보 처리 방식: 회원가입 없음, 서버 없음, 기록은 브라우저에만, Pro 키는 선택한 제공자에게만 전송.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#F8FAFC">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .doc { max-width: 760px; margin: 0 auto; padding: 40px 20px 64px; }
+  .doc h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; letter-spacing: -.04em; line-height: 1.2; }
+  .doc .lede { margin-top: 10px; color: var(--muted); font-size: 14.5px; line-height: 1.7; word-break: keep-all; }
+  .doc h2 { margin-top: 30px; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+  .doc h3 { margin-top: 20px; font-size: 14px; font-weight: 700; }
+  .doc p, .doc li { margin-top: 8px; font-size: 13.8px; line-height: 1.75; color: var(--ink-2); word-break: keep-all; }
+  .doc ul { padding-left: 18px; list-style: disc; }
+  .doc li::marker { color: var(--accent); }
+  .doc .box { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .doc .box strong { color: var(--ink); }
+  .doc .back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--accent-ink); text-decoration: none; }
+  .doc .en { margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .doc code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar__in">
+    <a class="brand" href="./" aria-label="OneTap AI Team Room">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <rect x="3" y="3" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".95"/>
+          <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".55"/>
+          <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".55"/>
+          <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor" opacity=".95"/>
+        </svg>
+      </span>
+      <span class="brand__text"><strong>OneTap AI Team Room</strong><span>안건마다 AI 5명이 들어옵니다</span></span>
+    </a>
+  </div>
+</header>
+
+<main class="doc">
+  <a class="back" href="./">← 회의실로 돌아가기</a>
+  <h1>개인정보 처리</h1>
+  <p class="lede">원탭 AI 팀 회의실은 회원가입도, 서버도, 분석 도구도 쓰지 않습니다. 이 페이지는 무엇이 어디에 남는지만 정확히 적습니다. 마지막 갱신: 2026-11-22.</p>
+
+  <div class="box">
+    <strong>한 줄 요약</strong>
+    <p>무료 모드는 이 브라우저 안에서만 돌아갑니다. Pro 키를 넣으면 그 키는 이 브라우저에 저장되고, 선택한 제공자(OpenAI·Google·Anthropic)에게만 전송됩니다. 우리 서버는 없습니다.</p>
+  </div>
+
+  <h2>1. 수집하지 않는 것</h2>
+  <ul>
+    <li>이름, 전화번호, 이메일, 주소 같은 계정 정보를 받지 않습니다. 계정을 만들지 않습니다.</li>
+    <li>쿠키, 광고 식별자, 방문 분석, 세션 녹화를 쓰지 않습니다.</li>
+    <li>안건과 발언을 서버로 보내지 않습니다. 무료 모드에서는 외부 요청이 0건입니다.</li>
+  </ul>
+
+  <h2>2. 브라우저에 남는 것</h2>
+  <p><code>localStorage</code>에 아래 항목이 저장됩니다. 서버로 전송되지 않으며, 같은 브라우저에서만 보입니다.</p>
+  <ul>
+    <li><code>onetap.teamroom.v1</code> — 8개 기본 부서와 직접 추가한 부서의 안건, 발언, 답글, 액션 체크 상태, 팀 역할 이름, 언어와 모드</li>
+    <li><code>onetap.teamroom.pro.v1</code> — Pro 제공자, 모델 이름, API 키 (직접 넣은 경우에만)</li>
+  </ul>
+  <p>방 초기화를 누르면 그 방의 기록이 지워집니다. 브라우저의 사이트 데이터를 지우면 전부 사라집니다. 계정이 없으므로 저희 쪽에는 복구할 사본이 없습니다.</p>
+
+  <h2>3. Pro 모드에서 나가는 것</h2>
+  <p>Pro 모드는 사용자가 넣은 키로 브라우저에서 제공자 API를 직접 호출합니다. 전송되는 내용은 안건, 회의 맥락, 앞선 발언, 역할 지시입니다. 전송 대상은 다음과 같습니다.</p>
+  <ul>
+    <li>OpenAI — <code>api.openai.com</code></li>
+    <li>Google Gemini — <code>generativelanguage.googleapis.com</code></li>
+    <li>Anthropic Claude — <code>api.anthropic.com</code></li>
+  </ul>
+  <p>각 제공자의 보관·학습 정책은 그 회사의 약관을 따릅니다. 민감한 회사 기밀은 넣지 마세요. 키 삭제를 누르면 이 브라우저에서 키가 즉시 지워집니다.</p>
+
+  <h2>4. 내보내기</h2>
+  <p>회의록 내보내기(MD·TXT·JSON)와 복사는 브라우저에서 파일을 만들어 저장하는 방식입니다. 저희가 그 파일을 받지 않습니다.</p>
+
+  <h2>5. 외부 링크</h2>
+  <p>하단의 맞춤 구축 문의 버튼은 <code>marcj81.github.io/ai-backoffice-offer/</code>로 이동합니다. 그 페이지를 열면 해당 페이지의 정책이 적용됩니다.</p>
+
+  <h2>6. 문의</h2>
+  <p>이 도구는 원탭 도구 허브의 27호기로, 별도 회원 데이터를 보관하지 않습니다. 회사 단위 구축 상담은 하단의 맞춤 구축 문의 링크로 이어집니다.</p>
+
+  <div class="en">
+    <h2>Privacy in English</h2>
+    <p>No account, no server, no cookies and no analytics. Your rooms, role names, agenda, turns and checklist stay in this browser's localStorage. In Pro mode your key is stored locally and sent only to the provider you choose (OpenAI, Google or Anthropic) along with the meeting context you typed. We never receive it. Clear the room or your site data to remove everything; there is no copy on our side.</p>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <span class="foot__brand">OneTap AI Team Room</span>
+    <span class="foot__sep" aria-hidden="true">·</span>
+    <span>원탭 도구 허브 · 27호기</span>
+    <a href="./">회의실</a>
+  </div>
+</footer>
+</body>
+</html>
