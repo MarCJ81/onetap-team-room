@@ -239,6 +239,10 @@
     'cta.button': 'Ask about a private build',
     'cta.note': 'Opens the backoffice offer page in a new tab.',
 
+    'pro.freeTitle': 'Free taste',
+    'pro.freeStatus': '5 runs a day · up to 3 seats',
+    'pro.freeDesc': 'Without a key, the free AI answers three seats of this round and retries once if the format breaks. It is sent to an external AI provider, so do not paste anything sensitive.',
+    'pro.freeButton': 'Answer 3 seats with the free AI',
     'pro.title': 'Pro connection',
     'pro.sub': 'Save a key for each of the three providers on one screen. GPT and Claude also run as a web subscription bridge without a key. Keys and questions go only from this browser to that provider — never through our server.',
     'pro.provider': 'Provider',
@@ -564,6 +568,10 @@
     'cta.button': '맞춤 구축 문의',
     'cta.note': '새 탭에서 백오피스 제안 페이지가 열립니다.',
 
+    'pro.freeTitle': '무료 체험',
+    'pro.freeStatus': '하루 5회 · 3개 부서까지',
+    'pro.freeDesc': '키 없이 무료 AI가 이번 라운드의 부서 3곳을 답합니다. 형식이 어긋나면 한 번 더 요청합니다. 외부 AI 제공자로 전송되니 민감한 내용은 넣지 마세요.',
+    'pro.freeButton': '무료 AI로 3개 부서 답 받기',
     'pro.title': 'Pro 연결',
     'pro.sub': '세 제공자의 키를 한 화면에서 각각 저장합니다. GPT·Claude는 키 없이 웹 구독 브리지로도 쓸 수 있습니다. 키와 질문은 이 브라우저에서 그 제공자로만 가고, 우리 서버를 거치지 않습니다.',
     'pro.provider': '제공자',

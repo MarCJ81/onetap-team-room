@@ -371,6 +371,19 @@
       <span class="pro-status__value" id="proStatusValue">No key yet</span>
       <span class="pro-status__badge" id="proStatusBadge" hidden>0/3</span>
     </div>
+
+    <div class="free-taste" id="freeTaste">
+      <div class="free-taste__head">
+        <b data-i18n="pro.freeTitle">무료 체험</b>
+        <span class="free-taste__note" id="freeStatus" data-i18n="pro.freeStatus">하루 5회 · 3개 부서까지</span>
+      </div>
+      <p class="free-taste__desc" data-i18n="pro.freeDesc">키 없이 무료 AI가 이번 라운드의 부서 3곳을 답합니다.</p>
+      <div class="free-taste__actions">
+        <button type="button" class="btn btn--primary btn--sm" id="freeRoundBtn" data-i18n="pro.freeButton">무료 AI로 3개 부서 답 받기</button>
+        <span class="muted" id="freeRemain"></span>
+      </div>
+      <div class="free-limit" id="freeLimitCard" hidden></div>
+    </div>
     <form id="proForm" class="pro-form">
       <section class="pro-slot" data-pro-slot="openai" data-pro-provider="openai">
         <header class="pro-slot__head">
@@ -558,6 +571,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="engines/ai-guard.js"></script>
+<script src="engines/free-ai-client.js"></script>
 <script src="data.js"></script>
 <script src="core.js"></script>
 <script src="i18n.js"></script>

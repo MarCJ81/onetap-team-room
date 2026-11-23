@@ -199,3 +199,20 @@ python3 uitest.py  # headless Chrome E2E 422건 (데스크톱 1440×900, 모바�
 라이브: **<https://marcj81.github.io/onetap-team-room/>** (GitHub Pages · `gh-pages` 브랜치, `.nojekyll` 포함). canonical·sitemap·robots가 이 주소를 가리킵니다.
 
 이 공개 저장소에는 사이트가 실제로 쓰는 파일만 올라가 있습니다. 검증 스크립트(`test.js`, `uitest.py`)와 미리보기 캡처(`preview-*.png`)는 저장소에 포함하지 않습니다.
+
+
+## 2차 업그레이드 (2026-11-23)
+
+### 응답 구조 검증 (`engines/ai-guard.js` + `engines/zod.js`) — zod 4.6.7 (MIT)
+- AI가 형식을 어기면 회의록 표가 깨지던 문제를 막습니다.
+- 발언 카드 스키마(`blocks[{kind,title,lines}]`, `items[{text,owner,due}]`)로 검사하고, 어긋나면 **버릴 부분만 버려 복구**합니다(빈 블록 제거, 종류 정규화, 길이 제한, 빈 액션 제거).
+- 복구로도 살릴 수 없으면 **같은 질문에 형식 고정 지시를 붙여 1회 재요청**합니다.
+- zod(약 450KB)는 첫 AI 호출 때 한 번만 받습니다.
+
+### 무료 AI 맛보기 (`engines/free-ai-client.js`)
+- Pro 모달에 `무료 AI로 3개 부서 답 받기`(하루 5회)를 추가했습니다.
+- 503(제공자 혼잡)은 1회 자동 재시도, 429(한도)면 `내 무료 Gemini 키` 카드.
+- **기존 규칙 엔진·구독 브리지·Pro 모드·2.5D 디오라마/캐릭터/애니메이션은 건드리지 않았습니다.**
+
+### 검증
+- `node test.js` 1,198 checks · `python3 uitest.py`(브라우저 실측)

@@ -10,6 +10,9 @@
   var Core = window.TeamRoomCore;
   var Data = window.TeamRoomData;
   var I18N = window.TeamRoomI18n;
+  var AG = window.AiGuard || null;      // engines/ai-guard.js (zod 구조 검증·재시도)
+  var FA = window.FreeAI || null;       // engines/free-ai-client.js (무료 AI 맛보기)
+  if (FA) FA.configure({ endpoint: 'https://free-ai-taste.goodday810202.workers.dev', app: 'ai-team-room' });
   var STORE = 'onetap.teamroom.v1';
   var PRO_STORE = 'onetap.teamroom.pro.v2';
   var LEGACY_PRO_STORE = 'onetap.teamroom.pro.v1';
@@ -1683,6 +1686,31 @@
     }).slice(0, 8);
   }
 
+  /* ── 응답 구조 검증(zod) · 형식이 어긋나면 1회 재요청 ─────────────
+     파싱 결과가 스키마를 못 맞추면 같은 질문에 형식 고정 지시를 붙여
+     한 번 더 묻는다. 두 번째도 어긋나면 복구본으로 회의록을 채운다. */
+  function parseGuarded(text, role, l, retryFn) {
+    var parsed = Core.parsePro(text, role, l);
+    if (!AG) return Promise.resolve(parsed);
+    return AG.check(parsed, l).then(function (res) {
+      if (res && res.ok) return res.value;
+      if (retryFn) {
+        return retryFn().then(function (text2) {
+          return parseGuarded(text2, role, l, null);
+        }, function () { return parsed; });
+      }
+      return (res && res.value) || parsed;
+    }, function () { return parsed; });
+  }
+
+  function withStrictFormat(messages, l) {
+    if (!AG) return messages;
+    var extra = AG.strictInstruction(l);
+    return messages.map(function (m) {
+      return m.role === 'user' ? { role: m.role, content: m.content + extra } : m;
+    });
+  }
+
   function finishProRound() {
     setGenerating(false);
     state.thinking = null;
@@ -1786,7 +1814,9 @@
       });
       callProvider(messages, controller.signal, route).then(function (text) {
         if (token !== state.token) return;
-        var parsed = Core.parsePro(text, role, lang());
+        return parseGuarded(text, role, lang(), function () {
+          return callProvider(withStrictFormat(messages, lang()), controller.signal, route);
+        }).then(function (parsed) {
         var msg = {
           id: uid('msg'),
           roleId: role.id,
@@ -1804,7 +1834,7 @@
           replyTo: null,
           blocks: parsed.blocks,
           claims: [],
-          itemIds: parsed.items.map(function (x) { return x.id; }),
+          itemIds: parsed.items.map(function (x) { return x.id || uid('itm'); }),
           ts: Date.now()
         };
         state.thinking = null;
@@ -1812,6 +1842,7 @@
         appendItems(target, msg.itemIds, parsed.items);
         index += 1;
         next();
+        });
       }).catch(function (err) {
         if (token !== state.token) return;
         clearTimeout(timer);
@@ -1826,6 +1857,98 @@
       });
     }
     next();
+  }
+
+  /* ── 무료 AI 맛보기 라운드 (키 없이 3개 부서) ─────────────────────
+     Pro·브리지가 하나도 없을 때만 쓰는 경로. Worker가 429를 주면
+     전환 카드를 띄우고 멈춘다. 기존 규칙 엔진·브리지·Pro 흐름은 그대로다. */
+  function renderFreeLimit(res) {
+    var card = $('#freeLimitCard');
+    var st = $('#freeStatus');
+    if (st) st.textContent = '오늘 무료 횟수를 다 썼습니다';
+    if (!card) return;
+    var cta = (res && res.cta) || {};
+    var href = cta.keyUrl || 'https://aistudio.google.com/apikey';
+    card.hidden = false;
+    var title = lang() === 'en' ? 'Free taste used up' : '무료 체험을 다 쓰셨습니다';
+    var fallback = lang() === 'en' ? 'Connect a free Gemini key or a subscription bridge to keep going.' : '무료 Gemini 키나 구독 브리지로 이어서 쓸 수 있습니다.';
+    card.innerHTML = '<b>' + title + '</b><div>' +
+      String((res && res.message) || fallback) +
+      '</div><div class="free-limit__actions">' +
+      '<a class="btn btn--primary btn--sm" href="' + href + '" target="_blank" rel="noopener noreferrer">' + (lang() === 'en' ? 'Connect my free Gemini key' : '내 무료 Gemini 키 연결') + '</a>' +
+      '</div>';
+  }
+
+  function runFreeRound() {
+    if (!FA) { toast('무료 체험 엔진을 불러오지 못했습니다.'); return; }
+    if (state.generating) return;
+    var plan = prepareRun();
+    if (!plan) return;
+    var roles = proRoles().slice(0, 3);
+    if (!roles.length) return;
+    var token = ++state.token;
+    var target = room();
+    var index = 0;
+    var l = lang();
+    state.replyTo = null;
+    state.bridgeWait = null;
+    clearError();
+    closeModal('pro');
+    setGenerating(true, '무료 AI가 답하는 중… 1/' + roles.length);
+    renderThread();
+
+    function step() {
+      if (token !== state.token) return;
+      if (index >= roles.length) { finishProRound(); return; }
+      var role = roles[index];
+      var prompt = Core.bridgePrompt({
+        role: role,
+        lang: l,
+        agenda: plan.text,
+        room: state.room,
+        roomName: roomInfo(state.room).name[l],
+        roles: roles,
+        prior: []
+      });
+      var txt = $('#runProgressText');
+      if (txt) txt.textContent = '무료 AI가 답하는 중… ' + (index + 1) + '/' + roles.length + ' · ' + role.name;
+      FA.generate({ task: 'text', prompt: prompt, options: { temperature: 0.6, maxTokens: 900 } }, { timeoutMs: 45000 })
+        .then(function (res) {
+          if (token !== state.token) return null;
+          if (res && res.ok) {
+            var parsed = Core.parseBridgeAnswer(res.text, role, l);
+            if (!AG) return parsed;
+            return AG.check(parsed, l).then(function (g) { return g && g.ok ? g.value : parsed; });
+          }
+          if (FA.isQuota(res)) {
+            setGenerating(false);
+            renderFreeLimit(res);
+            openModal('pro');
+            return null;
+          }
+          throw new Error((res && res.message) || '무료 AI 응답을 받지 못했습니다.');
+        })
+        .then(function (parsed) {
+          if (!parsed || token !== state.token) return;
+          var msg = {
+            id: uid('msg'), roleId: role.id, kind: role.kind, name: role.name, tag: role.tag,
+            glyph: role.glyph, accent: role.accent, mode: 'free', round: plan.round,
+            provider: 'free', modelLabel: 'Free taste', modelName: 'free-ai-taste', fallback: false,
+            replyTo: null, blocks: parsed.blocks, claims: [],
+            itemIds: parsed.items.map(function (x) { return x.id || uid('itm'); }), ts: Date.now()
+          };
+          appendMessage(target, msg);
+          appendItems(target, msg.itemIds, parsed.items);
+          index += 1;
+          step();
+        })
+        .catch(function (err) {
+          if (token !== state.token) return;
+          setGenerating(false);
+          toast((err && err.message) || '무료 AI 호출에 실패했습니다.');
+        });
+    }
+    step();
   }
 
   /* ── subscription bridge: copy the question, paste the answer ────────── */
@@ -2063,20 +2186,23 @@
       if (!replyRoute) { openModal('pro'); return; }
       callProvider(prompt, controller.signal, replyRoute).then(function (out) {
         if (token !== state.token) return;
-        var parsed = Core.parsePro(out, role, lang());
+        return parseGuarded(out, role, lang(), function () {
+          return callProvider(withStrictFormat(prompt, lang()), controller.signal, replyRoute);
+        }).then(function (parsed) {
         var msg = {
           id: uid('msg'), roleId: role.id, kind: role.kind, name: role.name, tag: role.tag,
           glyph: role.glyph, accent: role.accent, mode: 'pro', round: parent.round || 1,
           provider: replyRoute.provider, modelLabel: replyRoute.label, modelName: replyRoute.model,
           fallback: replyRoute.fallback,
           replyTo: userMsg.id, blocks: parsed.blocks, claims: [],
-          itemIds: parsed.items.map(function (x) { return x.id; }), ts: Date.now()
+          itemIds: parsed.items.map(function (x) { return x.id || uid('itm'); }), ts: Date.now()
         };
         appendMessage(room(), msg);
         appendItems(room(), msg.itemIds, parsed.items);
         refreshOutputs();
         save();
         renderProjects();
+        });
       }).catch(function (err) {
         if (token !== state.token) return;
         showError(providerErrorMessage(err));
@@ -2492,6 +2618,8 @@
 
     var proOpen = $('#proOpen');
     if (proOpen) proOpen.addEventListener('click', function () { openModal('pro'); });
+    var freeRoundBtn = $('#freeRoundBtn');
+    if (freeRoundBtn) freeRoundBtn.addEventListener('click', function () { runFreeRound(); });
 
     var roomTabs = $('#roomTabs');
     if (roomTabs) {
