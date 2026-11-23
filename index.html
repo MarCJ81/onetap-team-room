@@ -126,6 +126,11 @@
           <div class="mroom__floor">
             <img class="mroom__bg" src="assets/diorama/meeting.webp" alt="" width="1300" height="500" decoding="async">
             <span class="mroom__sun" aria-hidden="true"></span>
+            <div class="mroom__air" id="mroomAir" hidden>
+              <p class="mroom__airhead"><span class="hq__beacon" aria-hidden="true"></span><span data-i18n="hq.badge.onAir">ON AIR</span><span class="mroom__airwho" id="mroomAirWho"></span></p>
+              <p class="mroom__bubble" id="mroomBubble"></p>
+            </div>
+            <p class="mroom__note" id="mroomNote" data-i18n="hq.room.idle">안건을 넣고 ‘회의 시작’을 누르면 다섯 역할이 이 테이블로 소집됩니다.</p>
             <ul class="mroom__seats mroom__seats--back" id="mroomTop" aria-label="회의실 좌석" data-i18n-aria="hq.seat.label"></ul>
             <div class="mroom__table">
               <svg class="mroom__tabletop" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -185,11 +190,6 @@
                   <circle cx="306" cy="62" r="2.8" fill="#d9b98c"></circle>
                 </g>
               </svg>
-              <div class="mroom__air" id="mroomAir" hidden>
-                <p class="mroom__airhead"><span class="hq__beacon" aria-hidden="true"></span><span data-i18n="hq.badge.onAir">ON AIR</span><span class="mroom__airwho" id="mroomAirWho"></span></p>
-                <p class="mroom__bubble" id="mroomBubble"></p>
-              </div>
-              <p class="mroom__note" id="mroomNote" data-i18n="hq.room.idle">안건을 넣고 ‘회의 시작’을 누르면 다섯 역할이 이 테이블로 소집됩니다.</p>
             </div>
             <ul class="mroom__seats mroom__seats--front" id="mroomBottom" aria-label="회의실 좌석" data-i18n-aria="hq.seat.label"></ul>
           </div>

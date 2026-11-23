@@ -1700,7 +1700,7 @@ svg { display: block; }
 .mroom__air {
   position: absolute;
   left: 50%;
-  top: -7%;
+  top: 4%;
   transform: translateX(-50%);
   z-index: 5;
   display: flex;
@@ -1759,7 +1759,7 @@ svg { display: block; }
 .mroom__note {
   position: absolute;
   left: 50%;
-  top: -30%;
+  top: 5%;
   transform: translateX(-50%);
   z-index: 5;
   width: max-content;
@@ -1866,12 +1866,12 @@ svg { display: block; }
   .seat__name { font-size: 8.8px; }
   .seat__body { padding: 1px 4px; }
   .seat__badge { font-size: 8px; }
-  .mroom__air { max-width: 66%; padding: 4px 7px 5px; }
+  .mroom__air { max-width: 78%; padding: 4px 7px 5px; }
   .mroom__bubble { font-size: 9.4px; -webkit-line-clamp: 3; }
   .mroom__note { max-width: 46ch; font-size: 9.6px; padding: 3px 7px; }
-  .mroom__air { top: -8%; }
+  .mroom__air { top: 30%; }
   .monitor__say { top: 22px; font-size: 8.2px; }
-  .mroom__note { top: -26%; }
+  .mroom__note { top: 36%; }
   .hq__top { flex-direction: column; gap: 10px; }
   .hud { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .hud__cell, .hud__cell--rate { min-width: 0; padding: 7px 8px; }
