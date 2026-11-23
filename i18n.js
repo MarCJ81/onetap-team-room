@@ -116,7 +116,7 @@
     'agenda.needText': 'Write an agenda first, or tap a sample.',
     'agenda.chars': '{n} characters',
     'agenda.continue': 'Continue the discussion',
-    'agenda.busy': 'This room already has a meeting. Keep the same agenda to continue, or reset the room to start a new one.',
+    'agenda.busy': 'A new agenda opens a new project. The current one stays in the project list.',
     'team.max': 'Up to 10 roles in one room.',
 
     'team.title': 'Team',
@@ -390,7 +390,7 @@
     'agenda.needText': '안건을 먼저 적거나 샘플을 눌러 주세요.',
     'agenda.chars': '{n}자',
     'agenda.continue': '이어서 토론',
-    'agenda.busy': '이 방에는 진행 중인 회의가 있습니다. 같은 안건이면 이어서 하고, 새로 시작하려면 방 초기화를 눌러 주세요.',
+    'agenda.busy': '새 안건을 넣으면 새 프로젝트로 시작합니다. 지금 프로젝트는 목록에 그대로 남습니다.',
     'team.max': '방 하나에 역할은 10개까지입니다.',
 
     'team.title': '팀 구성',

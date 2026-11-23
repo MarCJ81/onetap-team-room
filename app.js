@@ -1103,8 +1103,14 @@
       return null;
     }
     if (r.messages.length && text !== r.startedAgenda) {
-      showError(t('agenda.busy'));
-      return null;
+      /* A different agenda starts a new project: the old record is written back
+         to its project first, so nothing is lost and the two never mix. */
+      flushRoom();
+      delete state.activeProject[state.room];
+      r.messages = [];
+      r.items = [];
+      r.outputs = [];
+      round = 1;
     }
     if (!r.messages.length) {
       r.agenda = text;
