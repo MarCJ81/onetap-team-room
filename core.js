@@ -1959,27 +1959,141 @@
     });
   }
 
-  /* The seat's appointed provider wins when it has a key. Otherwise the turn
-     falls back to a connected provider, rotated by the seat's position in the
-     round so one key does not answer every seat alone. null = no key at all. */
+  /* Providers switched on as a web subscription bridge without a key: the seat's
+     question is copied to the provider's web chat and the answer is pasted back.
+     A saved key always wins over the bridge for the same provider. */
+  function proBridge(connected) {
+    var keys = connected && typeof connected === 'object' ? connected : {};
+    return Data.BRIDGE_ORDER.filter(function (id) {
+      return !!(keys[id] && keys[id].bridge && !String(keys[id].key || '').trim());
+    });
+  }
+
+  /* The seat's appointed provider wins when it has a key. A bridged provider
+     answers through its web chat when it holds no key. Otherwise the turn falls
+     back to a connected provider, rotated by the seat's position in the round so
+     one key does not answer every seat alone. With no key at all, any bridged
+     provider keeps the round alive. null = nothing to call. */
   function proRoute(modelKey, connected, order) {
     var keys = connected && typeof connected === 'object' ? connected : {};
     var wanted = (Data.MODELS[modelKey] || Data.MODELS.gemini).provider;
-    function take(id, fallback) {
+    function take(id, fallback, bridge) {
       var cfg = keys[id] || {};
       return {
         provider: id,
         model: String(cfg.model || Data.PROVIDERS[id].model),
         label: Data.PROVIDERS[id].mark,
         providerLabel: Data.PROVIDERS[id].label,
-        fallback: !!fallback
+        fallback: !!fallback,
+        bridge: !!bridge
       };
     }
-    if (keys[wanted] && String(keys[wanted].key || '').trim()) return take(wanted, false);
+    if (keys[wanted] && String(keys[wanted].key || '').trim()) return take(wanted, false, false);
+    if (keys[wanted] && keys[wanted].bridge) return take(wanted, false, true);
     var live = proConnected(keys);
-    if (!live.length) return null;
-    var n = Math.abs(parseInt(order, 10) || 0) % live.length;
-    return take(live[n], true);
+    if (live.length) {
+      var n = Math.abs(parseInt(order, 10) || 0) % live.length;
+      return take(live[n], true, false);
+    }
+    var bridged = proBridge(keys);
+    if (bridged.length) {
+      var b = Math.abs(parseInt(order, 10) || 0) % bridged.length;
+      return take(bridged[b], true, true);
+    }
+    return null;
+  }
+
+  /* The text a bridged seat copies into ChatGPT or Claude. It carries the
+     agenda, a short digest of the team's answers so far, the seat's own focus
+     and the exact output format the parser understands — so a pasted answer
+     lands as a normal speech card. */
+  function bridgePrompt(opts) {
+    var o = opts || {};
+    var lang = o.lang === 'en' ? 'en' : 'ko';
+    var role = o.role || {};
+    var ko = lang === 'ko';
+    var agenda = String(o.agenda || '').trim() || (ko ? '(안건 없음)' : '(no agenda)');
+    var names = (o.roles || []).map(function (r) { return roleName(r, lang); }).filter(Boolean).join(', ');
+    var focus = String(o.focus || role.focus || '').trim();
+    var site = String(o.site || '').trim();
+    var room = String(o.roomName || '').trim();
+    var prior = (o.prior || []).map(function (p) {
+      if (typeof p === 'string') return p;
+      var who = p.name || '';
+      if (p.tag) who += ' (' + p.tag + ')';
+      return '- ' + who + ': ' + String(p.line || '').trim();
+    }).filter(Boolean);
+    var isAuditor = role.kind === 'auditor';
+    if (ko) {
+      var lines = [];
+      lines.push('지금 제품 팀 회의에서 ' + (role.name || '이 부서') + ' 자리의 답을 받으려고 합니다.');
+      lines.push('아래 안건과 앞선 발언을 읽고, 회의에서 말하듯 짧고 구체적으로 답해 주세요.');
+      lines.push('');
+      if (room) lines.push('회의실: ' + room);
+      if (names) lines.push('참석자: ' + names);
+      lines.push('안건: ' + agenda);
+      lines.push('');
+      lines.push('앞선 발언 요약:');
+      if (prior.length) prior.forEach(function (p) { lines.push(p); });
+      else lines.push('- (없음)');
+      lines.push('');
+      lines.push('요청:');
+      if (focus) lines.push('- ' + (role.name || '이 부서') + '의 기준: ' + focus);
+      lines.push('- 모르는 수치는 가정이라고 표시하고, 확인하지 않은 출처나 통계는 만들지 마세요.');
+      if (isAuditor) lines.push('- 앞선 답변의 숫자를 그대로 인용하고, 근거가 있는지 판단하고, 계산은 직접 다시 해보세요.');
+      lines.push('- 여섯 줄에서 열두 줄 사이로 답해 주세요.');
+      lines.push('');
+      lines.push('답변 형식(아래 제목을 그대로 쓰면 회의록에 자동으로 정리됩니다):');
+      lines.push('관점: 한 문단');
+      lines.push('제안:');
+      lines.push('- 항목');
+      lines.push('- 항목');
+      lines.push('리스크:');
+      lines.push('- 항목');
+      lines.push('요청:');
+      lines.push('- 항목');
+      lines.push('액션:');
+      lines.push('- 담당 | 기한 | 할 일');
+      if (site) {
+        lines.push('');
+        lines.push('(이 질문은 원탭 AI 팀 회의실의 ' + site + ' 구독 브리지에서 복사됐습니다. 답만 복사해 회의실에 붙여넣으면 됩니다.)');
+      }
+      return lines.join('\n');
+    }
+    var out = [];
+    out.push('I need the ' + (role.name || 'department') + ' seat of our product team meeting answered.');
+    out.push('Read the agenda and the earlier answers below, then answer the way a person does in a meeting: short and concrete.');
+    out.push('');
+    if (room) out.push('Room: ' + room);
+    if (names) out.push('Participants: ' + names);
+    out.push('Agenda: ' + agenda);
+    out.push('');
+    out.push('Earlier answers:');
+    if (prior.length) prior.forEach(function (p) { out.push(p); });
+    else out.push('- (none)');
+    out.push('');
+    out.push('Requests:');
+    if (focus) out.push('- ' + (role.name || 'This seat') + ' looks at: ' + focus);
+    out.push('- Mark any figure you assume, and never invent a source or a statistic.');
+    if (isAuditor) out.push('- Quote each number above, judge whether its basis is stated, and redo the arithmetic yourself.');
+    out.push('- Answer in six to twelve lines.');
+    out.push('');
+    out.push('Answer format (these headings make the meeting minutes format themselves):');
+    out.push('View: one paragraph');
+    out.push('Plan:');
+    out.push('- item');
+    out.push('- item');
+    out.push('Risk:');
+    out.push('- item');
+    out.push('Ask:');
+    out.push('- item');
+    out.push('Action:');
+    out.push('- owner | due | task');
+    if (site) {
+      out.push('');
+      out.push('(Copied from the ' + site + ' subscription bridge in OneTap AI Team Room. Paste only the answer back into the room.)');
+    }
+    return out.join('\n');
   }
 
   function stripBullet(line) {
@@ -2043,6 +2157,72 @@
     });
 
     /* Action block is also shown as a block; keep it, it reads fine. */
+    return { blocks: blocks, items: items };
+  }
+
+  /* An answer pasted back from a web chat may follow the requested headings or
+     arrive as plain prose. Headed text goes through parsePro. Plain text is
+     regrouped: paragraphs become the view, bullet lines become the plan (and
+     "owner | due | task" bullets become actions), risk/ask lines get their own
+     block — so either shape lands as a clean speech card. */
+  function parseBridgeAnswer(text, role, lang) {
+    lang = lang === 'en' ? 'en' : 'ko';
+    var ko = lang === 'ko';
+    var raw = String(text || '').replace(/\r\n/g, '\n').trim();
+    if (!raw) return { blocks: [], items: [] };
+    var parsed = parsePro(raw, role, lang);
+    var headed = parsed.blocks.length > 1
+      || (parsed.blocks[0] && parsed.blocks[0].kind !== 'view')
+      || (parsed.blocks[0] && (parsed.blocks[0].lines || []).length === 1);
+    if (headed) return parsed;
+
+    var view = [];
+    var plan = [];
+    var risk = [];
+    var ask = [];
+    var action = [];
+    raw.split('\n').forEach(function (line) {
+      var t = line.trim();
+      if (!t) return;
+      var bullet = /^(?:[-*•·]|\d+[.)])\s+(.+)$/.exec(t);
+      var body = stripBullet(t);
+      if (!body) return;
+      if (/^(?:리스크|주의|걱정|위험|risk|concern)s?\s*[:：]?\s*(.*)$/i.test(t)) {
+        var rv = t.replace(/^(?:리스크|주의|걱정|위험|risk|concern)s?\s*[:：]?\s*/i, '');
+        if (rv.trim()) risk.push(stripBullet(rv));
+        return;
+      }
+      if (/^(?:요청|도움|부탁|ask|need|request)s?\s*[:：]?\s*(.*)$/i.test(t)) {
+        var av = t.replace(/^(?:요청|도움|부탁|ask|need|request)s?\s*[:：]?\s*/i, '');
+        if (av.trim()) ask.push(stripBullet(av));
+        return;
+      }
+      if (bullet) {
+        if (body.indexOf('|') >= 0) action.push(body);
+        else plan.push(body);
+        return;
+      }
+      view.push(body);
+    });
+    var blocks = [];
+    if (view.length) blocks.push({ kind: 'view', title: ko ? '관점' : 'View', lines: view.slice(0, 4) });
+    if (plan.length) blocks.push({ kind: 'plan', title: ko ? '제안' : 'Plan', lines: plan.slice(0, 8) });
+    if (risk.length) blocks.push({ kind: 'risk', title: ko ? '리스크' : 'Risk', lines: risk.slice(0, 6) });
+    if (ask.length) blocks.push({ kind: 'ask', title: ko ? '요청' : 'Ask', lines: ask.slice(0, 6) });
+    if (action.length) blocks.push({ kind: 'action', title: ko ? '액션' : 'Action', lines: action.slice(0, 6) });
+
+    var items = [];
+    action.forEach(function (line, i) {
+      var parts = line.split('|').map(function (s) { return s.trim(); });
+      var owner = parts.length >= 3 ? parts[0] : (role.name || '');
+      var due = parts.length >= 3 ? parts[1] : (ko ? '이번 주' : 'this week');
+      var task = parts.length >= 3 ? parts.slice(2).join(' | ') : line;
+      if (!task) return;
+      items.push({ id: uid('itm', 'bridge|' + task + '|' + i), text: task, owner: owner, due: due, done: false });
+    });
+    if (!blocks.length && raw) {
+      blocks.push({ kind: 'view', title: ko ? '관점' : 'View', lines: [raw.replace(/\s+/g, ' ').trim()] });
+    }
     return { blocks: blocks, items: items };
   }
 
@@ -2193,7 +2373,9 @@
     var lang = o.lang === 'en' ? 'en' : 'ko';
     var roles = o.roles || [];
     var items = o.items || [];
-    var messages = (o.messages || []).filter(function (m) { return m && m.roleId !== 'user' && !m.replyTo; });
+    var messages = (o.messages || []).filter(function (m) {
+      return m && m.roleId !== 'user' && !m.replyTo && m.bridge !== 'waiting';
+    });
     var a = analyze(o.agenda || '', lang);
     if (a.empty) a = analyze(lang === 'en' ? 'We need to decide what to do this week.' : '이번 주에 무엇을 할지 정해야 합니다.', lang);
     var be = breakEven(a);
@@ -2394,8 +2576,11 @@
     summarize: summarize,
     proPrompts: proPrompts,
     proConnected: proConnected,
+    proBridge: proBridge,
     proRoute: proRoute,
+    bridgePrompt: bridgePrompt,
     parsePro: parsePro,
+    parseBridgeAnswer: parseBridgeAnswer,
     buildOutputs: buildOutputs,
     outputsMinutes: outputsMinutes,
     OUTPUT_TITLES: OUTPUT_TITLES,

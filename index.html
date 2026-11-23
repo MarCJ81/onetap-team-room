@@ -364,7 +364,7 @@
       <h2 id="proTitle" data-i18n="pro.title">Pro 연결</h2>
       <button type="button" class="icon-btn icon-btn--plain" data-close="pro" aria-label="Close">✕</button>
     </div>
-    <p class="modal__sub" data-i18n="pro.sub">세 제공자의 키를 한 화면에서 각각 저장합니다. 키는 이 브라우저에서 해당 제공자로만 전송되고, 우리 서버를 거치지 않습니다.</p>
+    <p class="modal__sub" data-i18n="pro.sub">세 제공자의 키를 한 화면에서 각각 저장합니다. GPT·Claude는 키 없이 웹 구독 브리지로도 쓸 수 있습니다. 키와 질문은 이 브라우저에서 그 제공자로만 가고, 우리 서버를 거치지 않습니다.</p>
     <div class="pro-status" id="proStatus">
       <span class="pro-status__label" data-i18n="pro.status">상태</span>
       <span class="pro-status__value" id="proStatusValue">No key yet</span>
@@ -386,6 +386,11 @@
             <input type="password" id="proKeyOpenai" data-pro-key="openai" autocomplete="off" spellcheck="false" placeholder="sk-…">
           </div>
         </div>
+        <label class="pro-bridge" data-pro-bridge-row="openai">
+          <input type="checkbox" data-pro-bridge="openai">
+          <span class="pro-bridge__text"><b data-i18n="pro.bridgeToggle">웹 구독 브리지로 사용</b>
+            <em data-i18n="pro.bridgeHint">키 없이 ChatGPT 웹에서 답을 받아 붙여넣습니다. 키를 넣으면 키가 먼저입니다.</em></span>
+        </label>
         <p class="pro-slot__saved" data-pro-saved="openai" hidden></p>
         <div class="pro-slot__actions">
           <button type="button" class="btn btn--primary btn--sm" data-pro-save="openai" data-i18n="pro.saveOne">저장</button>
@@ -402,13 +407,14 @@
         <div class="pro-slot__grid">
           <div class="field">
             <label for="proModelGemini" data-i18n="pro.model">모델</label>
-            <input type="text" id="proModelGemini" data-pro-model="gemini" autocomplete="off" spellcheck="false" value="gemini-2.5-flash">
+            <input type="text" id="proModelGemini" data-pro-model="gemini" autocomplete="off" spellcheck="false" value="gemini-3.5-flash-lite">
           </div>
           <div class="field">
             <label for="proKeyGemini" data-i18n="pro.key">API 키</label>
             <input type="password" id="proKeyGemini" data-pro-key="gemini" autocomplete="off" spellcheck="false" placeholder="AIza…">
           </div>
         </div>
+        <p class="pro-slot__note" data-i18n="pro.geminiNote">기본 모델 gemini-3.5-flash-lite · 무료 티어 15 RPM / 500 RPD. 2.5-flash는 12/1에 전환되므로 기본값을 바꿨습니다.</p>
         <p class="pro-slot__saved" data-pro-saved="gemini" hidden></p>
         <div class="pro-slot__actions">
           <button type="button" class="btn btn--primary btn--sm" data-pro-save="gemini" data-i18n="pro.saveOne">저장</button>
@@ -432,6 +438,11 @@
             <input type="password" id="proKeyClaude" data-pro-key="claude" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
           </div>
         </div>
+        <label class="pro-bridge" data-pro-bridge-row="claude">
+          <input type="checkbox" data-pro-bridge="claude">
+          <span class="pro-bridge__text"><b data-i18n="pro.bridgeToggle">웹 구독 브리지로 사용</b>
+            <em data-i18n="pro.bridgeHintClaude">키 없이 Claude 웹에서 답을 받아 붙여넣습니다. 키를 넣으면 키가 먼저입니다.</em></span>
+        </label>
         <p class="pro-slot__saved" data-pro-saved="claude" hidden></p>
         <div class="pro-slot__actions">
           <button type="button" class="btn btn--primary btn--sm" data-pro-save="claude" data-i18n="pro.saveOne">저장</button>
@@ -446,8 +457,8 @@
         <button type="button" class="btn btn--quiet btn--sm" id="proDeleteAll" data-i18n="pro.deleteAll">저장된 키 모두 삭제</button>
       </div>
     </form>
-    <p class="modal__note" data-i18n="pro.localNote">OpenAI와 Claude는 브라우저 직접 호출을 막는 경우가 있습니다. 그때는 Gemini나 자체 프록시가 확실합니다.</p>
-    <p class="modal__note" data-i18n="pro.keyNote">각 키는 그 제공자에게만 전송됩니다. 이 페이지에는 백엔드가 없습니다.</p>
+    <p class="modal__note" data-i18n="pro.localNote">OpenAI와 Claude는 브라우저 직접 호출을 막는 경우가 있습니다. 그때는 키 대신 위의 웹 구독 브리지를 켜면 됩니다.</p>
+    <p class="modal__note" data-i18n="pro.keyNote">각 키는 그 제공자에게만 전송됩니다. 브리지는 질문을 클립보드에 복사해 ChatGPT·Claude 새 탭을 열 뿐이고, 답은 내가 붙여넣습니다. 이 페이지에는 백엔드가 없습니다.</p>
   </div>
 </div>
 

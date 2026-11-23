@@ -27,7 +27,8 @@
       label: Data.PROVIDERS[id].label,
       mark: Data.PROVIDERS[id].mark,
       keyHint: Data.PROVIDERS[id].keyHint,
-      model: Data.PROVIDERS[id].model
+      model: Data.PROVIDERS[id].model,
+      bridge: Data.PROVIDERS[id].bridge || null
     };
   });
   PROVIDERS.openai.endpoint = 'https://api.openai.com/v1/chat/completions';
@@ -56,7 +57,8 @@
     token: 0,
     pro: null,
     proError: null,
-    proFailIndex: null
+    proFailIndex: null,
+    bridgeWait: null
   };
   var saveTimer = null;
   var toastTimer = null;
@@ -301,7 +303,7 @@
 
   function savePro() {
     try {
-      if (state.pro && proCount()) {
+      if (state.pro && (proCount() || bridgeCount())) {
         localStorage.setItem(PRO_STORE, JSON.stringify({ v: 2, providers: state.pro }));
       } else {
         localStorage.removeItem(PRO_STORE);
@@ -310,11 +312,12 @@
     } catch (e) { /* ignore */ }
   }
 
-  /* ── Pro connection: one optional key per provider ──────────────────── */
+  /* ── Pro connection: one optional key or bridge per provider ────────── */
 
-  /* { openai: {model, key}, gemini: {model, key}, claude: {model, key} } with
-     only the providers that hold a key. The earlier single-key record
-     ({provider, model, key}) is read as that provider's slot. */
+  /* { openai: {model, key?, bridge?}, gemini: {model, key}, claude: ... } with
+     only the providers that hold a key or are switched on as a web bridge. The
+     earlier single-key record ({provider, model, key}) is read as that
+     provider's slot. */
   function normalizePro(raw) {
     if (!raw || typeof raw !== 'object') return null;
     var src = (raw.providers && typeof raw.providers === 'object') ? raw.providers : null;
@@ -328,15 +331,23 @@
       var one = src[id];
       if (!one || typeof one !== 'object') return;
       var key = typeof one.key === 'string' ? one.key.trim() : '';
-      if (!key) return;
+      var bridge = !!one.bridge && !!PROVIDERS[id].bridge;
+      if (!key && !bridge) return;
       var model = typeof one.model === 'string' && one.model.trim() ? one.model.trim() : PROVIDERS[id].model;
-      out[id] = { model: model, key: key };
+      out[id] = { model: model };
+      if (key) out[id].key = key;
+      if (bridge) out[id].bridge = true;
     });
     return Object.keys(out).length ? out : null;
   }
 
   function proCount() {
     return Core.proConnected(state.pro).length;
+  }
+
+  /* Providers switched on as a web subscription bridge and holding no key. */
+  function bridgeCount() {
+    return Core.proBridge(state.pro).length;
   }
 
   /* ── strings ─────────────────────────────────────────────────────────── */
@@ -565,13 +576,44 @@
       + '</div></form>';
   }
 
+  function bridgeCardHtml(m) {
+    var site = bridgeSite(m);
+    var role = bridgeRole(m);
+    var name = role.name || m.name;
+    var prompt = bridgePromptFor(m);
+    return '<article class="msg msg--bridge is-waiting" data-msg-id="' + esc(m.id) + '" data-role-id="' + esc(m.roleId) + '" data-bridge="waiting" style="--role:' + esc(m.accent || '#2563eb') + '">'
+      + '<header class="msg__head">'
+      + '<div class="msg__who"><span class="avatar" aria-hidden="true">' + esc(m.glyph || (name || '?').slice(0, 1)) + '</span>'
+      + '<span class="msg__name">' + esc(name) + '</span><span class="msg__tag">' + esc(m.tag || '') + '</span></div>'
+      + '<div class="msg__meta"><span class="badge badge--bridge">' + esc(t('thread.bridgeBadge')) + '</span>'
+      + '<span class="badge badge--model" data-model="' + esc(m.provider || '') + '">' + esc(m.modelLabel || '') + '</span>'
+      + '<span>' + esc(timeText(m.ts)) + '</span></div></header>'
+      + '<p class="bridge__lead">' + esc(t('bridge.lead', { name: name, site: site.site })) + '</p>'
+      + '<div class="bridge__steps">'
+      + '<button type="button" class="btn btn--primary btn--sm bridge__copy" data-bridge-copy="' + esc(m.id) + '">' + esc(t('bridge.copyOpen', { site: site.site })) + '</button>'
+      + '<a class="bridge__open" href="' + esc(site.url) + '" target="_blank" rel="noopener">' + esc(site.site) + '</a>'
+      + '</div>'
+      + '<label class="bridge__label" for="bridge-input-' + esc(m.id) + '">' + esc(t('bridge.pasteLabel')) + '</label>'
+      + '<textarea class="bridge__input" id="bridge-input-' + esc(m.id) + '" data-bridge-text="' + esc(m.id) + '" rows="5" maxlength="6000" spellcheck="false" placeholder="' + esc(t('bridge.pastePlaceholder', { site: site.site })) + '">' + esc(m.bridgeDraft || '') + '</textarea>'
+      + '<div class="bridge__actions">'
+      + '<button type="button" class="btn btn--primary btn--sm" data-bridge-apply="' + esc(m.id) + '">' + esc(t('bridge.apply')) + '</button>'
+      + '<button type="button" class="btn btn--quiet btn--sm" data-bridge-free="' + esc(m.id) + '">' + esc(t('bridge.freeFill')) + '</button>'
+      + '</div>'
+      + '<p class="bridge__note">' + esc(t('bridge.answerNote')) + '</p>'
+      + '<details class="bridge__preview"><summary>' + esc(t('bridge.preview')) + '</summary><pre>' + esc(prompt) + '</pre></details>'
+      + '</article>';
+  }
+
   function roleMsgHtml(m) {
+    if (m.mode === 'bridge' && m.bridge === 'waiting') return bridgeCardHtml(m);
     var badge = m.mode === 'pro'
       ? '<span class="badge">' + esc(t('thread.proBadge')) + '</span>'
-      : '<span class="badge">' + esc(t('thread.freeBadge')) + '</span>';
+      : m.mode === 'bridge'
+        ? '<span class="badge badge--bridge">' + esc(m.bridge === 'skipped' ? t('thread.bridgeFreeBadge') : t('thread.bridgeDoneBadge')) + '</span>'
+        : '<span class="badge">' + esc(t('thread.freeBadge')) + '</span>';
     /* A Pro card names the provider that really answered, not the one the seat
        was appointed to, and marks a turn that fell back to another key. */
-    if (m.provider && PROVIDERS[m.provider]) {
+    if (m.mode !== 'bridge' && m.provider && PROVIDERS[m.provider]) {
       badge += '<span class="badge badge--model" data-model="' + esc(m.provider) + '" title="' + esc(m.modelName || PROVIDERS[m.provider].model) + '">'
         + esc(m.modelLabel || PROVIDERS[m.provider].mark) + '</span>';
     } else {
@@ -628,7 +670,7 @@
         + (state.generating ? thinkingHtml() : '');
     }
     var cont = $('#continueBtn');
-    if (cont) cont.hidden = !msgs.length || state.generating;
+    if (cont) cont.hidden = !msgs.length || state.generating || !!state.bridgeWait;
   }
 
   /* ── render: actions / summary / progress ───────────────────────────── */
@@ -889,17 +931,24 @@
     });
     var gear = $('#proOpen');
     var n = proCount();
+    var bridges = bridgeCount();
     if (gear) {
-      gear.classList.toggle('has-key', n > 0);
-      gear.style.color = n > 0 ? 'var(--ok)' : '';
+      gear.classList.toggle('has-key', n > 0 || bridges > 0);
+      gear.style.color = n > 0 || bridges > 0 ? 'var(--ok)' : '';
       gear.setAttribute('data-count', String(n));
+      gear.setAttribute('data-bridge', String(bridges));
     }
     var count = $('#proCount');
     if (count) {
-      count.hidden = n === 0;
-      count.textContent = n + '/' + PROVIDER_ORDER.length;
+      count.hidden = n === 0 && bridges === 0;
+      count.textContent = n === 0 && bridges
+        ? t('pro.bridgeBadge', { b: bridges })
+        : n + '/' + PROVIDER_ORDER.length;
       count.classList.toggle('is-full', n === PROVIDER_ORDER.length);
-      count.setAttribute('title', t('pro.countTitle', { n: n, total: PROVIDER_ORDER.length }));
+      count.classList.toggle('is-bridge', bridges > 0);
+      count.setAttribute('title', n === 0 && bridges
+        ? t('pro.bridgeTitle', { b: bridges })
+        : t('pro.countTitle', { n: n, total: PROVIDER_ORDER.length }));
     }
   }
 
@@ -1031,6 +1080,21 @@
     var right = $('#hqRight');
     if (!left || !right) return;
     var snap = liveModel();
+    /* A bridged seat waiting for a pasted answer keeps the room ON AIR: the
+       department figure stands with a bubble saying whose answer is missing. */
+    if (state.bridgeWait) {
+      snap.seats.forEach(function (s) {
+        if (s.roleId !== state.bridgeWait.roleId) return;
+        s.state = 'live';
+        s.bubble = t('hq.room.bridgeWait', { name: s.name });
+        snap.speaking = s;
+        if (snap.monitors[s.roomId] !== undefined) {
+          snap.monitors[s.roomId] = 'live';
+          snap.holders[s.roomId] = s;
+        }
+      });
+      if (snap.speaking) snap.phase = 'live';
+    }
     var roles = resolvedRoles();
     var byId = {};
     roles.forEach(function (r) { byId[r.id] = r; });
@@ -1104,6 +1168,7 @@
 
   function renderAll() {
     applyLang();
+    syncBridgeWait();
     renderRooms();
     renderSamples();
     renderAgenda();
@@ -1115,6 +1180,11 @@
     renderProStatus();
     renderLive();
     renderProjects();
+    /* A waiting bridge freezes the round buttons on every full repaint. */
+    var run = $('#runBtn');
+    if (run) run.disabled = state.generating || !!state.bridgeWait;
+    var cont = $('#continueBtn');
+    if (cont) cont.hidden = state.generating || !room().messages.length || !!state.bridgeWait;
   }
 
   /* ── free run ────────────────────────────────────────────────────────── */
@@ -1140,7 +1210,7 @@
   function setGenerating(on, label) {
     state.generating = on;
     var btn = $('#runBtn');
-    if (btn) btn.disabled = on;
+    if (btn) btn.disabled = on || !!state.bridgeWait;
     var prog = $('#runProgress');
     if (prog) prog.hidden = !on;
     if (label) {
@@ -1148,7 +1218,7 @@
       if (txt) txt.textContent = label;
     }
     var cont = $('#continueBtn');
-    if (cont) cont.hidden = on || !room().messages.length;
+    if (cont) cont.hidden = on || !room().messages.length || !!state.bridgeWait;
   }
 
   function appendMessage(target, msg) {
@@ -1292,7 +1362,7 @@
   /* ── Pro: provider calls ─────────────────────────────────────────────── */
 
   function proReady() {
-    return proCount() > 0;
+    return proCount() > 0 || bridgeCount() > 0;
   }
 
   /* The model mark that will actually answer this seat right now. */
@@ -1410,6 +1480,26 @@
     return parts.join('\n\n');
   }
 
+  /* The eight seats a Pro round calls, in speaking order. */
+  function proRoles() {
+    return resolvedRoles().filter(function (r, i, arr) {
+      if (['pm', 'dev', 'design', 'video', 'growth', 'sales', 'cfo', 'auditor'].indexOf(r.kind) < 0) return false;
+      return arr.findIndex(function (x) { return x.kind === r.kind; }) === i;
+    }).slice(0, 8);
+  }
+
+  function finishProRound() {
+    setGenerating(false);
+    state.thinking = null;
+    state.speakingId = null;
+    state.livePreview = '';
+    refreshOutputs();
+    save();
+    renderThread();
+    renderLive();
+    renderProjects();
+  }
+
   function runPro(startIndex) {
     if (state.generating) return;
     if (!proReady()) {
@@ -1429,14 +1519,19 @@
       plan = prepareRun();
     }
     if (!plan) return;
-    var roles = resolvedRoles().filter(function (r, i, arr) {
-      if (['pm', 'dev', 'design', 'video', 'growth', 'sales', 'cfo', 'auditor'].indexOf(r.kind) < 0) return false;
-      return arr.findIndex(function (x) { return x.kind === r.kind; }) === i;
-    }).slice(0, 8);
+    proSequence(plan, proRoles(), startIndex);
+  }
+
+  /* One Pro round, seat by seat. A seat appointed to a bridged provider stops
+     the sequence with a bridge card instead of an API call; the answer pasted
+     back (or filled by the free engine) continues from the next seat. */
+  function proSequence(plan, roles, startIndex) {
+    var target = room();
     var token = ++state.token;
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 60000);
     state.replyTo = null;
+    state.bridgeWait = null;
     clearError();
     setGenerating(true, t('pro.running', { name: roles[startIndex].name, i: startIndex + 1, model: routeLabel(roles[startIndex], startIndex) }));
     renderThread();
@@ -1446,15 +1541,7 @@
       if (token !== state.token) { clearTimeout(timer); return; }
       if (index >= roles.length) {
         clearTimeout(timer);
-        setGenerating(false);
-        state.thinking = null;
-        state.speakingId = null;
-        state.livePreview = '';
-        refreshOutputs();
-        save();
-        renderThread();
-        renderLive();
-        renderProjects();
+        finishProRound();
         return;
       }
       var role = roles[index];
@@ -1464,6 +1551,24 @@
         setGenerating(false);
         state.thinking = null;
         openModal('pro');
+        return;
+      }
+      if (route.bridge) {
+        clearTimeout(timer);
+        state.thinking = null;
+        state.speakingId = null;
+        state.livePreview = '';
+        var wait = bridgeWaitMessage(role, route, plan, index);
+        state.bridgeWait = { id: wait.id, roleId: role.id, name: role.name };
+        setGenerating(false);
+        appendMessage(target, wait);
+        save();
+        renderThread();
+        renderLive();
+        renderProjects();
+        toast(t('bridge.readyToast', { name: role.name, site: PROVIDERS[route.provider].bridge.site }));
+        var card = $('#thread [data-msg-id="' + wait.id + '"]');
+        if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
         return;
       }
       state.thinking = role.name;
@@ -1526,6 +1631,192 @@
       });
     }
     next();
+  }
+
+  /* ── subscription bridge: copy the question, paste the answer ────────── */
+
+  function bridgeWaitMessage(role, route, plan, index) {
+    return {
+      id: uid('msg'),
+      roleId: role.id,
+      kind: role.kind,
+      name: role.name,
+      tag: role.tag,
+      glyph: role.glyph,
+      accent: role.accent,
+      mode: 'bridge',
+      bridge: 'waiting',
+      round: plan.round,
+      provider: route.provider,
+      modelLabel: route.label,
+      modelName: route.model,
+      bridgeIndex: index,
+      bridgeAgenda: plan.text,
+      replyTo: null,
+      blocks: [{ kind: 'ask', title: t('bridge.waitTitle'), lines: [t('bridge.waitLine', { site: PROVIDERS[route.provider].bridge.site })] }],
+      claims: [],
+      itemIds: [],
+      ts: Date.now()
+    };
+  }
+
+  function bridgeMessage(id) {
+    return (room().messages || []).filter(function (m) { return m.id === id; })[0] || null;
+  }
+
+  function bridgeRole(m) {
+    return resolvedRoles().filter(function (r) { return r.id === m.roleId; })[0]
+      || { id: m.roleId, kind: m.kind, name: m.name, tag: m.tag, accent: m.accent };
+  }
+
+  /* The one line a seat keeps after it speaks — used in the next bridge prompt. */
+  function bridgeLine(m) {
+    var plan = (m.blocks || []).filter(function (b) { return b.kind === 'plan'; })[0];
+    var line = (plan && plan.lines && plan.lines[0]) || (m.blocks && m.blocks[0] && m.blocks[0].lines && m.blocks[0].lines[0]) || '';
+    return String(line).replace(/\s+/g, ' ').trim().slice(0, 130);
+  }
+
+  /* Built at copy time, so the question carries the current language and every
+     answer that landed before this seat. */
+  function bridgePromptFor(m) {
+    var role = bridgeRole(m);
+    var msgs = room().messages || [];
+    var at = -1;
+    msgs.forEach(function (x, i) { if (x.id === m.id) at = i; });
+    var prior = [];
+    msgs.slice(0, at < 0 ? msgs.length : at).forEach(function (x) {
+      if (!x || x.roleId === 'user' || x.bridge === 'waiting') return;
+      if ((x.round || 1) !== (m.round || 1)) return;
+      prior.push({ name: x.name, tag: x.tag, line: bridgeLine(x) });
+    });
+    /* A later round opens with no turn of its own yet: give the web chat the
+       last three answers so the seat still speaks with the meeting's context. */
+    if (!prior.length) {
+      msgs.slice(0, at < 0 ? msgs.length : at).filter(function (x) {
+        return x && x.roleId !== 'user' && x.bridge !== 'waiting';
+      }).slice(-3).forEach(function (x) {
+        prior.push({ name: x.name, tag: x.tag, line: bridgeLine(x) });
+      });
+    }
+    return Core.bridgePrompt({
+      role: role,
+      lang: lang(),
+      agenda: m.bridgeAgenda || room().startedAgenda || room().agenda || '',
+      room: state.room,
+      roomName: roomInfo(state.room).name[lang()],
+      roles: proRoles(),
+      focus: role.focus || '',
+      prior: prior,
+      site: m.provider && PROVIDERS[m.provider] && PROVIDERS[m.provider].bridge ? PROVIDERS[m.provider].bridge.site : ''
+    });
+  }
+
+  function bridgeSite(m) {
+    return (m.provider && PROVIDERS[m.provider] && PROVIDERS[m.provider].bridge)
+      ? PROVIDERS[m.provider].bridge
+      : { site: m.modelLabel || 'AI', url: 'https://chatgpt.com' };
+  }
+
+  /* Copy the question and open the provider's web chat in a new tab. The copy
+     toast is shown either way, so a blocked popup still leaves the prompt in
+     the clipboard and the card shows the address to open by hand. */
+  function openBridgeChat(id) {
+    var m = bridgeMessage(id);
+    if (!m) return;
+    var site = bridgeSite(m);
+    var text = bridgePromptFor(m);
+    copyText(text, 'bridge.copied', { site: site.site });
+    try {
+      var win = window.open(site.url, '_blank');
+      if (win) win.opener = null;
+    } catch (e) { /* the visible link on the card is the fallback */ }
+  }
+
+  function applyBridgeAnswer(id, text) {
+    var m = bridgeMessage(id);
+    if (!m || m.bridge !== 'waiting') return false;
+    var role = bridgeRole(m);
+    var parsed = Core.parseBridgeAnswer(text, role, lang());
+    if (!parsed.blocks.length) {
+      toast(t('bridge.needText'));
+      return false;
+    }
+    m.blocks = parsed.blocks;
+    m.itemIds = parsed.items.map(function (x) { return x.id; });
+    m.bridge = 'answered';
+    m.answeredAt = Date.now();
+    m.bridgeDraft = '';
+    appendItems(room(), m.itemIds, parsed.items);
+    refreshOutputs();
+    save();
+    renderThread();
+    renderLive();
+    renderProjects();
+    toast(t('bridge.applied', { name: m.name, n: m.itemIds.length }));
+    resumeAfterBridge(m);
+    return true;
+  }
+
+  /* The free engine answers this one seat, so a meeting never stalls waiting
+     for a browser tab. */
+  function fillBridgeFree(id) {
+    var m = bridgeMessage(id);
+    if (!m || m.bridge !== 'waiting') return false;
+    var role = bridgeRole(m);
+    var roles = resolvedRoles();
+    var result = Core.generateRound({
+      agenda: m.bridgeAgenda || room().startedAgenda || '',
+      room: state.room,
+      roomName: roomInfo(state.room).name[lang()],
+      lang: lang(),
+      roles: roles,
+      round: m.round || 1,
+      seed: 1
+    });
+    var pick = result.messages.filter(function (x) { return x.roleId === m.roleId; })[0];
+    if (!pick) pick = result.messages.filter(function (x) { return x.kind === role.kind; })[0];
+    if (!pick) return false;
+    var ids = pick.itemIds || [];
+    var items = result.items.filter(function (it) { return ids.indexOf(it.id) >= 0; });
+    m.blocks = pick.blocks;
+    m.itemIds = ids;
+    m.bridge = 'skipped';
+    m.answeredAt = Date.now();
+    m.bridgeDraft = '';
+    appendItems(room(), ids, items);
+    refreshOutputs();
+    save();
+    renderThread();
+    renderLive();
+    renderProjects();
+    toast(t('bridge.freeDone', { name: m.name }));
+    resumeAfterBridge(m);
+    return true;
+  }
+
+  function resumeAfterBridge(m) {
+    state.bridgeWait = null;
+    var roles = proRoles();
+    var nextIndex = (typeof m.bridgeIndex === 'number' ? m.bridgeIndex : roles.length) + 1;
+    if (state.mode !== 'pro' || nextIndex >= roles.length) {
+      setGenerating(false);
+      renderThread();
+      renderLive();
+      return;
+    }
+    proSequence({ text: m.bridgeAgenda || room().startedAgenda || '', round: m.round || 1 }, roles, nextIndex);
+  }
+
+  /* A waiting bridge message survives a reload: the diorama and the seat keep
+     saying whose answer the room is waiting for. */
+  function syncBridgeWait() {
+    var msgs = room().messages || [];
+    var wait = null;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].roleId !== 'user' && msgs[i].mode === 'bridge' && msgs[i].bridge === 'waiting') { wait = msgs[i]; break; }
+    }
+    state.bridgeWait = wait ? { id: wait.id, roleId: wait.roleId, name: wait.name } : null;
+    return wait;
   }
 
   function showProError(msg, retryIndex) {
@@ -1662,7 +1953,7 @@
     toast(t('export.done', { name: name }));
   }
 
-  function copyText(text, okKey) {
+  function copyText(text, okKey, vars) {
     function fallback() {
       var ta = document.createElement('textarea');
       ta.value = text;
@@ -1673,12 +1964,12 @@
       var ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       ta.remove();
-      toast(ok ? t(okKey) : t('toast.copyFailed'));
+      toast(ok ? t(okKey, vars) : t('toast.copyFailed'));
       return ok;
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       return navigator.clipboard.writeText(text).then(function () {
-        toast(t(okKey));
+        toast(t(okKey, vars));
         return true;
       }).catch(fallback);
     }
@@ -1736,12 +2027,15 @@
       var cfg = (state.pro && state.pro[id]) || null;
       var model = $('[data-pro-model="' + id + '"]');
       var key = $('[data-pro-key="' + id + '"]');
+      var bridge = $('[data-pro-bridge="' + id + '"]');
+      var bridged = !!(cfg && cfg.bridge && !String(cfg.key || '').trim());
       if (model) model.value = cfg ? cfg.model : PROVIDERS[id].model;
       if (key) {
         key.value = '';
-        key.placeholder = cfg ? maskKey(cfg.key) : PROVIDERS[id].keyHint;
-        key.setAttribute('data-saved', cfg ? '1' : '0');
+        key.placeholder = cfg && cfg.key ? maskKey(cfg.key) : PROVIDERS[id].keyHint;
+        key.setAttribute('data-saved', cfg && cfg.key ? '1' : '0');
       }
+      if (bridge) bridge.checked = bridged;
     });
     var err = $('#proError');
     if (err) { err.hidden = true; err.textContent = ''; }
@@ -1749,39 +2043,58 @@
   }
 
   function renderProStatus() {
-    var n = proCount();
+    var keys = proCount();
+    var bridges = bridgeCount();
     var total = PROVIDER_ORDER.length;
     var el = $('#proStatusValue');
     if (el) {
-      el.textContent = n === 0 ? t('pro.none')
-        : n === total ? t('pro.allConnected', { n: n, total: total })
-        : t('pro.someConnected', { n: n, total: total });
-      el.setAttribute('data-count', String(n));
-      el.classList.toggle('is-ready', n === total);
-      el.classList.toggle('is-partial', n > 0 && n < total);
+      el.textContent = keys === 0 && bridges === 0 ? t('pro.none')
+        : keys === total ? t('pro.allConnected', { n: keys, total: total })
+        : keys === 0 ? t('pro.bridgeOnly', { b: bridges })
+        : bridges ? t('pro.bridgeStatus', { n: keys, b: bridges, total: total })
+        : t('pro.someConnected', { n: keys, total: total });
+      el.setAttribute('data-count', String(keys));
+      el.setAttribute('data-bridge', String(bridges));
+      el.classList.toggle('is-ready', keys === total);
+      el.classList.toggle('is-partial', keys > 0 && keys < total);
+      el.classList.toggle('is-bridge', bridges > 0 && keys < total);
     }
     var chip = $('#proStatusBadge');
     if (chip) {
-      chip.textContent = n + '/' + total;
-      chip.hidden = n === 0;
-      chip.classList.toggle('is-full', n === total);
+      chip.textContent = keys === 0 && bridges ? t('pro.bridgeBadge', { b: bridges }) : keys + '/' + total;
+      chip.hidden = keys === 0 && bridges === 0;
+      chip.classList.toggle('is-full', keys === total);
+      chip.classList.toggle('is-bridge', bridges > 0);
     }
     PROVIDER_ORDER.forEach(function (id) {
-      var on = !!(state.pro && state.pro[id]);
+      var cfg = (state.pro && state.pro[id]) || null;
+      var on = !!(cfg && cfg.key);
+      var bridged = !!(cfg && cfg.bridge && !cfg.key);
       var slot = $('[data-pro-slot="' + id + '"]');
-      if (slot) slot.classList.toggle('is-connected', on);
+      if (slot) {
+        slot.classList.toggle('is-connected', on);
+        slot.classList.toggle('is-bridged', bridged);
+      }
       var mark = $('[data-pro-badge="' + id + '"]');
       if (mark) {
-        mark.textContent = on ? t('pro.connected') : t('pro.notConnected');
+        mark.textContent = on ? t('pro.connected') : bridged ? t('pro.bridged') : t('pro.notConnected');
         mark.classList.toggle('is-on', on);
+        mark.classList.toggle('is-bridge', bridged);
       }
       var clear = $('[data-pro-clear="' + id + '"]');
-      if (clear) clear.disabled = !on;
+      if (clear) {
+        clear.disabled = !on && !bridged;
+        clear.textContent = bridged ? t('pro.bridgeOff') : t('pro.deleteOne');
+      }
       var saved = $('[data-pro-saved="' + id + '"]');
       if (saved) {
-        saved.hidden = !on;
-        saved.textContent = on ? t('pro.savedOn', { key: maskKey(state.pro[id].key) }) : '';
+        saved.hidden = !on && !bridged;
+        saved.textContent = on ? t('pro.savedOn', { key: maskKey(cfg.key) })
+          : bridged ? t('pro.bridgeOn', { site: PROVIDERS[id].bridge.site }) : '';
+        saved.classList.toggle('is-bridge', bridged);
       }
+      var key = $('[data-pro-key="' + id + '"]');
+      if (key) key.disabled = bridged;
     });
   }
 
@@ -1789,29 +2102,39 @@
     if (!PROVIDERS[id]) return;
     var modelEl = $('[data-pro-model="' + id + '"]');
     var keyEl = $('[data-pro-key="' + id + '"]');
+    var bridgeEl = $('[data-pro-bridge="' + id + '"]');
     var err = $('#proError');
     var typed = keyEl ? keyEl.value.trim() : '';
     var stored = (state.pro && state.pro[id] && state.pro[id].key) || '';
     var key = typed || stored;
     var model = (modelEl && modelEl.value.trim()) || PROVIDERS[id].model;
-    if (!key) {
-      if (err) { err.textContent = t('pro.invalid'); err.hidden = false; }
+    var bridgeOn = !!(bridgeEl && bridgeEl.checked && PROVIDERS[id].bridge);
+    if (!key && !bridgeOn) {
+      if (err) {
+        err.textContent = PROVIDERS[id].bridge ? t('pro.invalidOrBridge') : t('pro.invalid');
+        err.hidden = false;
+      }
       if (keyEl) keyEl.focus();
       return;
     }
     state.pro = state.pro || {};
-    state.pro[id] = { model: model, key: key };
+    state.pro[id] = { model: model };
+    if (key) state.pro[id].key = key;
+    if (bridgeOn) state.pro[id].bridge = true;
     savePro();
     state.mode = 'pro';
     save();
     fillProForm();
     renderMode();
     renderRoster();
-    toast(t('toast.proSavedOne', { provider: PROVIDERS[id].mark }));
+    toast(bridgeOn && !key
+      ? t('toast.proBridge', { provider: PROVIDERS[id].mark, site: PROVIDERS[id].bridge.site })
+      : t('toast.proSavedOne', { provider: PROVIDERS[id].mark }));
   }
 
   function clearProvider(id) {
     if (!state.pro || !state.pro[id]) return;
+    var wasBridge = !!(state.pro[id].bridge && !state.pro[id].key);
     delete state.pro[id];
     if (!Object.keys(state.pro).length) state.pro = null;
     savePro();
@@ -1820,7 +2143,9 @@
     fillProForm();
     renderMode();
     renderRoster();
-    toast(t('toast.proDeletedOne', { provider: PROVIDERS[id].mark }));
+    toast(wasBridge
+      ? t('toast.proBridgeOff', { provider: PROVIDERS[id].mark })
+      : t('toast.proDeletedOne', { provider: PROVIDERS[id].mark }));
   }
 
   /* ── reset ───────────────────────────────────────────────────────────── */
@@ -2110,7 +2435,25 @@
         if (copy) {
           var m = room().messages.filter(function (x) { return x.id === copy.getAttribute('data-copy-msg'); })[0];
           if (m) copyText(messageText(m), 'thread.copied');
+          return;
         }
+        var bcopy = e.target.closest('[data-bridge-copy]');
+        if (bcopy) { openBridgeChat(bcopy.getAttribute('data-bridge-copy')); return; }
+        var bapply = e.target.closest('[data-bridge-apply]');
+        if (bapply) {
+          var bid = bapply.getAttribute('data-bridge-apply');
+          var box = thread.querySelector('[data-bridge-text="' + bid + '"]');
+          applyBridgeAnswer(bid, box ? box.value : '');
+          return;
+        }
+        var bfree = e.target.closest('[data-bridge-free]');
+        if (bfree) { fillBridgeFree(bfree.getAttribute('data-bridge-free')); return; }
+      });
+      thread.addEventListener('input', function (e) {
+        var box = e.target.closest('[data-bridge-text]');
+        if (!box) return;
+        var m = bridgeMessage(box.getAttribute('data-bridge-text'));
+        if (m) { m.bridgeDraft = box.value; saveSoon(); }
       });
       thread.addEventListener('submit', function (e) {
         var form = e.target.closest('[data-reply-form]');
@@ -2122,6 +2465,12 @@
         sendReply(id, ta.value);
       });
       thread.addEventListener('keydown', function (e) {
+        if (e.target.matches('[data-bridge-text]') && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          var bid = e.target.getAttribute('data-bridge-text');
+          applyBridgeAnswer(bid, e.target.value);
+          return;
+        }
         if (!e.target.matches('.reply-form textarea')) return;
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
           e.preventDefault();
@@ -2284,11 +2633,22 @@
         var slot = field.closest('[data-pro-slot]');
         if (slot) saveProvider(slot.getAttribute('data-pro-slot'));
       });
+      /* The bridge switch and the key field describe the same slot: off leaves
+         the key usable, on makes the key optional. */
+      proForm.addEventListener('change', function (e) {
+        var box = e.target.closest('[data-pro-bridge]');
+        if (!box) return;
+        var slot = box.closest('[data-pro-slot]');
+        var key = slot && slot.querySelector('[data-pro-key]');
+        var id = slot && slot.getAttribute('data-pro-slot');
+        var stored = !!(id && state.pro && state.pro[id] && state.pro[id].key);
+        if (key) key.disabled = box.checked && !stored;
+      });
     }
 
     var proDeleteAll = $('#proDeleteAll');
     if (proDeleteAll) proDeleteAll.addEventListener('click', function () {
-      if (!proCount()) return;
+      if (!proCount() && !bridgeCount()) return;
       state.pro = null;
       state.mode = 'free';
       savePro();
