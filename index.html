@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-design="designref.v2/crisp-bento">
+<html lang="ko" data-design="designref.v3/warm-clay-diorama">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,7 +7,7 @@
 <meta name="description" content="안건을 한 줄 넣으면 기획·개발·마케팅·재무 리드가 차례로 발언하고, 교차검수가 숫자와 허점을 다시 봅니다. 8개 부서에 원하는 부서를 더하고, 액션 체크리스트와 회의록이 남습니다. API 키 없이 무료.">
 <meta name="robots" content="index, follow">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#F8FAFC">
+<meta name="theme-color" content="#F7EDDD">
 <link rel="canonical" href="https://marcj81.github.io/onetap-team-room/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="OneTap AI Team Room">
@@ -124,52 +124,65 @@
           </div>
           <p class="mroom__agenda" id="mroomAgenda"></p>
           <div class="mroom__floor">
+            <img class="mroom__bg" src="assets/diorama/meeting.webp" alt="" width="1300" height="500" decoding="async">
+            <span class="mroom__sun" aria-hidden="true"></span>
             <ul class="mroom__seats mroom__seats--back" id="mroomTop" aria-label="회의실 좌석" data-i18n-aria="hq.seat.label"></ul>
             <div class="mroom__table">
               <svg class="mroom__tabletop" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                 <defs>
                   <linearGradient id="mtop" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#fdf8ee"></stop>
-                    <stop offset="1" stop-color="#ecd9b9"></stop>
+                    <stop offset="0" stop-color="#d9ae79"></stop>
+                    <stop offset=".5" stop-color="#c2915c"></stop>
+                    <stop offset="1" stop-color="#a97a45"></stop>
                   </linearGradient>
                   <linearGradient id="mrim" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stop-color="#ddc39c"></stop>
-                    <stop offset="1" stop-color="#c8ab80"></stop>
+                    <stop offset="0" stop-color="#96693c"></stop>
+                    <stop offset="1" stop-color="#6f4a26"></stop>
+                  </linearGradient>
+                  <linearGradient id="medge" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#6d4a26" stop-opacity=".38"></stop>
+                    <stop offset=".5" stop-color="#6d4a26" stop-opacity="0"></stop>
+                    <stop offset="1" stop-color="#6d4a26" stop-opacity=".38"></stop>
                   </linearGradient>
                 </defs>
-                <ellipse cx="200" cy="100" rx="150" ry="10" fill="#0f172a" opacity=".06"></ellipse>
-                <path d="M28 44a172 36 0 0 0 344 0v15a172 36 0 0 1-344 0z" fill="url(#mrim)"></path>
-                <ellipse cx="200" cy="44" rx="172" ry="36" fill="url(#mtop)" stroke="#e6d3b3" stroke-width="2"></ellipse>
-                <ellipse class="mroom__glow" cx="200" cy="42" rx="132" ry="24" fill="#2563eb" opacity=".07"></ellipse>
-                <ellipse cx="150" cy="32" rx="102" ry="14" fill="#ffffff" opacity=".48"></ellipse>
-                <path d="M74 54c40 11 218 11 256-2" fill="none" stroke="#e3cca7" stroke-width="2" opacity=".65"></path>
-                <g fill="#ffffff" stroke="#dbe5f1" stroke-width="1.6">
-                  <ellipse cx="98" cy="38" rx="18" ry="6.4"></ellipse>
-                  <ellipse cx="204" cy="24" rx="16" ry="5.6"></ellipse>
-                  <ellipse cx="304" cy="37" rx="18" ry="6.4"></ellipse>
-                  <ellipse cx="142" cy="64" rx="19" ry="6.8"></ellipse>
-                  <ellipse cx="266" cy="65" rx="19" ry="6.8"></ellipse>
+                <ellipse cx="200" cy="106" rx="150" ry="11" fill="#4a2e12" opacity=".26"></ellipse>
+                <path d="M58 50a142 30 0 0 0 284 0v14a142 30 0 0 1-284 0z" fill="url(#mrim)"></path>
+                <path d="M58 64a142 30 0 0 0 284 0v3a142 30 0 0 1-284 0z" fill="url(#medge)"></path>
+                <path d="M96 76l-8 28h14l5-26zM296 76l8 28h-14l-5-26z" fill="#8a5f33"></path>
+                <path d="M100 78l-5 24h2l5-24zM292 78l5 24h-2l-5-24z" fill="#b98a5a" opacity=".55"></path>
+                <ellipse cx="200" cy="50" rx="142" ry="30" fill="url(#mtop)" stroke="#a97b49" stroke-width="1.6"></ellipse>
+                <ellipse class="mroom__glow" cx="200" cy="49" rx="112" ry="20" fill="#f4b96a" opacity=".16"></ellipse>
+                <ellipse cx="158" cy="40" rx="70" ry="8" fill="#fff8e8" opacity=".18"></ellipse>
+                <path d="M88 61c36 9 188 9 224-2" fill="none" stroke="#b1814f" stroke-width="1.4" opacity=".5"></path>
+                <path d="M120 36c30-5 130-5 160 1M136 56c26 4 100 4 128-1" fill="none" stroke="#a2743f" stroke-width="1" opacity=".22"></path>
+                <g>
+                  <ellipse cx="112" cy="44" rx="10" ry="3.4" fill="#c9744a"></ellipse>
+                  <ellipse cx="112" cy="43.2" rx="7" ry="2.2" fill="#e9a06c"></ellipse>
+                  <ellipse cx="112" cy="43.2" rx="4.6" ry="1.3" fill="#5d3a24" opacity=".5"></ellipse>
+                  <path d="M121.4 41.8a3.8 3.8 0 0 1 0 3.2" fill="none" stroke="#b45f38" stroke-width="1.7"></path>
                 </g>
-                <g fill="#f2f7fc">
-                  <ellipse cx="98" cy="38" rx="10" ry="3.2"></ellipse>
-                  <ellipse cx="204" cy="24" rx="9" ry="3"></ellipse>
-                  <ellipse cx="304" cy="37" rx="10" ry="3.2"></ellipse>
-                  <ellipse cx="142" cy="64" rx="11" ry="3.6"></ellipse>
-                  <ellipse cx="266" cy="65" rx="11" ry="3.6"></ellipse>
+                <g transform="rotate(-7 218 32)">
+                  <rect x="200" y="27" width="26" height="17" rx="2.2" fill="#fffaf0" stroke="#dcc09a" stroke-width="1.1"></rect>
+                  <path d="M204 32h15M204 36h17M204 40h11" stroke="#d8c3a2" stroke-width="1.2" stroke-linecap="round"></path>
+                </g>
+                <g transform="rotate(6 292 46)">
+                  <rect x="278" y="40" width="23" height="15" rx="2" fill="#fffaf0" stroke="#dcc09a" stroke-width="1.1"></rect>
+                  <path d="M282 44h14M282 48h10" stroke="#d8c3a2" stroke-width="1.2" stroke-linecap="round"></path>
                 </g>
                 <g>
-                  <rect x="40" y="20" width="30" height="17" rx="2" fill="#e4ebf4" stroke="#cbd6e4" stroke-width="1.4"></rect>
-                  <polygon points="36,37 74,37 77,42 33,42" fill="#dbe4f0" stroke="#cbd6e4" stroke-width="1.4"></polygon>
-                  <rect x="45" y="23" width="20" height="11" rx="1" fill="#c3d2e4"></rect>
+                  <ellipse cx="164" cy="68" rx="12" ry="4" fill="#8f6440" opacity=".18"></ellipse>
+                  <path d="M156 57h16l-2.2 11h-11.6z" fill="#c9744a"></path>
+                  <ellipse cx="164" cy="57" rx="8" ry="2.8" fill="#e08a5c"></ellipse>
+                  <ellipse cx="164" cy="56.4" rx="5.4" ry="1.8" fill="#4f7a43"></ellipse>
+                  <path d="M164 54.8c-2.2-3-.8-5.6 1.4-6.6.7 2.4.3 4.8-1.4 6.6z" fill="#6f9a5c"></path>
+                  <path d="M164 54.4c2-2.4 4.6-2.2 6-1.2-1.6 1.9-3.8 2.6-6 1.2z" fill="#7aa868"></path>
                 </g>
                 <g>
-                  <rect x="318" y="26" width="22" height="14" rx="2" fill="#ffffff" stroke="#e2eaf4" stroke-width="1.2" transform="rotate(-8 329 33)"></rect>
-                  <rect x="328" y="42" width="20" height="12" rx="2" fill="#ffffff" stroke="#e2eaf4" stroke-width="1.2" transform="rotate(7 338 48)"></rect>
-                </g>
-                <g>
-                  <rect x="176" y="16" width="10" height="9" rx="2" fill="#ffffff" stroke="#dbe4f0" stroke-width="1.3"></rect>
-                  <path d="M186 18.5a3 3 0 0 1 0 4" fill="none" stroke="#dbe4f0" stroke-width="1.3"></path>
-                  <rect x="352" y="34" width="10" height="9" rx="2" fill="#ffffff" stroke="#dbe4f0" stroke-width="1.3"></rect>
+                  <rect x="238" y="60" width="14" height="4.4" rx="2.2" fill="#e8b96a"></rect>
+                  <rect x="240" y="61.2" width="3.8" height="2" rx="1" fill="#fdf1d8"></rect>
+                  <rect x="257" y="59" width="11" height="5.6" rx="2" fill="#9a7250"></rect>
+                  <circle cx="306" cy="62" r="6.2" fill="#fffaf0" stroke="#dcc09a" stroke-width="1.1"></circle>
+                  <circle cx="306" cy="62" r="2.8" fill="#d9b98c"></circle>
                 </g>
               </svg>
               <div class="mroom__air" id="mroomAir" hidden>
@@ -454,6 +467,7 @@
 <script src="data.js"></script>
 <script src="core.js"></script>
 <script src="i18n.js"></script>
+<script src="art.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

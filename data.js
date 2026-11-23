@@ -98,7 +98,7 @@
       kind: 'pm',
       tag: 'PM',
       glyph: 'P',
-      accent: '#2563eb',
+      accent: '#b45309',
       name: { ko: '기획 리드', en: 'Product Lead' },
       focus: {
         ko: '범위와 일정, 성공 지표 하나',
@@ -109,7 +109,7 @@
       kind: 'dev',
       tag: 'DEV',
       glyph: 'D',
-      accent: '#155e75',
+      accent: '#4f7057',
       name: { ko: '개발 리드', en: 'Tech Lead' },
       focus: {
         ko: '아키텍처, API 계약, 배포와 품질',
@@ -120,7 +120,7 @@
       kind: 'growth',
       tag: 'GROWTH',
       glyph: 'G',
-      accent: '#0f766e',
+      accent: '#96690d',
       name: { ko: '그로스 리드', en: 'Growth Lead' },
       focus: {
         ko: '채널, 메시지, 전환 측정',
@@ -131,7 +131,7 @@
       kind: 'cfo',
       tag: 'CFO',
       glyph: 'C',
-      accent: '#92400e',
+      accent: '#8a5a4a',
       name: { ko: '재무·법률', en: 'Finance & Legal' },
       focus: {
         ko: '예산, 회수 구조, 약관과 개인정보',
@@ -142,7 +142,7 @@
       kind: 'auditor',
       tag: 'AUDITOR',
       glyph: 'A',
-      accent: '#5b21b6',
+      accent: '#7a5a7e',
       name: { ko: '교차검수', en: 'Cross-audit' },
       focus: {
         ko: '앞선 답변의 숫자·출처·책임',

@@ -489,343 +489,18 @@
     }
   }
 
-  /* ── art: Roblox-style block crew + 2.5D isometric office ────────────── */
+  /* ── art: warm clay diorama (see art.js) ─────────────────────────────── */
 
-  /* Everything here is inline SVG drawn from numbers: no images, no CDN, no
-     text inside the art (labels stay in HTML so they keep their contrast and
-     their i18n keys). One block character per role, one desk per department. */
+  /* Each department card is a photographed clay miniature room (local WebP,
+     generated for this app) with a hand-drawn clay toy figure sitting in it.
+     art.js owns the drawings; this file only decides who sits where. */
+  var Art = window.TeamRoomArt;
 
-  var ART = 0;
-  function artId(p) { ART += 1; return p + ART; }
-
-  function mix(hex, to, k) {
-    var A = String(hex).replace('#', '');
-    var B = String(to).replace('#', '');
-    var out = '#';
-    for (var i = 0; i < 3; i += 1) {
-      var a = parseInt(A.slice(i * 2, i * 2 + 2), 16);
-      var b = parseInt(B.slice(i * 2, i * 2 + 2), 16);
-      out += ('0' + Math.round(a + (b - a) * k).toString(16)).slice(-2);
-    }
-    return out;
-  }
-  function dark(hex, k) { return mix(hex, '#0b1220', k); }
-  function lite(hex, k) { return mix(hex, '#ffffff', k); }
-
-  /* Department color for a monitor nobody is sitting at yet. */
-  var ROOM_ACCENT = {
-    general: '#475569', plan: '#2563eb', dev: '#0e7490', design: '#be185d',
-    video: '#7c3aed', marketing: '#0f766e', sales: '#b45309', ops: '#15803d'
-  };
-  var DEPT_PALETTE = ['#2563eb', '#0e7490', '#be185d', '#7c3aed', '#0f766e', '#b45309', '#15803d', '#475569'];
-
-  function deptAccent(id) {
-    if (ROOM_ACCENT[id]) return ROOM_ACCENT[id];
-    var h = 0;
-    String(id).split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) % 997; });
-    return DEPT_PALETTE[h % DEPT_PALETTE.length];
-  }
-
-  /* One look per reasoning kind: skin, hair, shirt, collar and gear. */
-  var LOOKS = {
-    pm: { skin: '#f3c7a2', hair: '#26303d', style: 'part', shirt: '#2563eb', collar: 'tie', tie: '#1e3a8a', gear: 'glasses', mouth: 'smile' },
-    dev: { skin: '#eebc94', hair: '#33241c', style: 'buzz', shirt: '#0e7490', collar: 'hoodie', gear: 'headset', mouth: 'smile' },
-    growth: { skin: '#f7d1a9', hair: '#1f2a37', style: 'cap', shirt: '#0f766e', collar: 'polo', gear: 'cap', mouth: 'grin' },
-    cfo: { skin: '#edc19a', hair: '#98a1ad', style: 'side', shirt: '#92400e', collar: 'tie', tie: '#7c2d12', gear: 'glasses', mouth: 'flat' },
-    auditor: { skin: '#f0c29f', hair: '#3d3152', style: 'bun', shirt: '#5b21b6', collar: 'vest', gear: 'headset', mouth: 'smirk' }
-  };
-
-  var HAIR_VARIANTS = ['#26303d', '#4a3428', '#5b4636', '#3b2f4a', '#1f2937', '#6d5642', '#7a4a2c', '#334155'];
-  var STYLE_VARIANTS = ['part', 'buzz', 'side', 'bun', 'cap'];
-  var MOUTH_VARIANTS = ['smile', 'grin', 'smirk', 'flat'];
-
-  function lookFor(role) {
-    var base = LOOKS[(role && role.kind) || 'pm'] || LOOKS.pm;
-    var out = {};
-    Object.keys(base).forEach(function (k) { out[k] = base[k]; });
-    out.accent = (role && role.accent) || base.shirt;
-    /* A role the user adds inherits its kind's uniform; the face is its own, so
-       two added roles of the same kind never look like the same person. */
-    if (role && role.custom) {
-      var h = 0;
-      String(role.id || '').split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) % 9973; });
-      out.hair = HAIR_VARIANTS[h % HAIR_VARIANTS.length];
-      out.style = STYLE_VARIANTS[h % STYLE_VARIANTS.length];
-      out.mouth = MOUTH_VARIANTS[Math.floor(h / 7) % MOUTH_VARIANTS.length];
-      out.gear = h % 2 ? 'glasses' : (base.gear === 'cap' ? 'glasses' : base.gear);
-    }
-    return out;
-  }
-
-  /* Upper body of one block character. Coordinates are 64 wide; y runs to 61
-     so the desk or the table can cut the body at the bottom. */
-  function figBody(L, o) {
-    var opts = o || {};
-    var shirt = L.shirt;
-    var shirtLo = dark(shirt, .2);
-    var shirtHi = lite(shirt, .2);
-    var hair = L.hair;
-    var skin = L.skin;
-    var skinLo = dark(skin, .12);
-    var accent = L.accent || shirt;
-    var accentLo = dark(accent, .22);
-    var p = [];
-
-    if (opts.chair) {
-      var chairCol = opts.chairCol || '#9dabbf';
-      p.push('<rect x="9" y="33" width="46" height="31" rx="13" fill="' + chairCol + '"/>');
-      p.push('<rect x="9" y="33" width="46" height="4.6" rx="2.3" fill="' + lite(chairCol, .3) + '"/>');
-      p.push('<path d="M13 48h38" stroke="' + dark(chairCol, .14) + '" stroke-width="1.6" opacity=".5"/>');
-      p.push('<rect x="5.6" y="44" width="4.6" height="13" rx="2.3" fill="' + dark(chairCol, .07) + '"/>');
-      p.push('<rect x="53.8" y="44" width="4.6" height="13" rx="2.3" fill="' + dark(chairCol, .07) + '"/>');
-    }
-    if (opts.legs) {
-      p.push('<rect x="22.4" y="59" width="8.2" height="16" rx="2.4" fill="#334155"/>');
-      p.push('<rect x="33.4" y="59" width="8.2" height="16" rx="2.4" fill="#334155"/>');
-      p.push('<rect x="20.8" y="73.4" width="10.4" height="5.4" rx="2.4" fill="#1b2431"/>');
-      p.push('<rect x="32.8" y="73.4" width="10.4" height="5.4" rx="2.4" fill="#1b2431"/>');
-    }
-
-    p.push('<rect x="28" y="31" width="8" height="7" rx="2.4" fill="' + skinLo + '"/>');
-    p.push('<rect x="19" y="35.5" width="26" height="26" rx="6.2" fill="' + shirt + '"/>');
-    p.push('<rect x="36" y="37" width="9" height="23" rx="4" fill="#0b1220" opacity=".09"/>');
-    p.push('<rect x="20.6" y="37" width="22" height="2.6" rx="1.3" fill="' + shirtHi + '" opacity=".65"/>');
-
-    if (L.collar === 'tie') {
-      p.push('<path d="M26.4 35.5 L32 44.8 L37.6 35.5 Z" fill="#f8fafc"/>');
-      p.push('<path d="M32 38.6 l3.2 1.7 l-1.3 9.2 l-1.9 2.7 l-1.9-2.7 l-1.3-9.2 Z" fill="' + (L.tie || '#1e3a8a') + '"/>');
-    } else if (L.collar === 'hoodie') {
-      p.push('<path d="M22.4 35.2 q9.6 8.8 19.2 0" fill="none" stroke="' + shirtLo + '" stroke-width="3.8" stroke-linecap="round"/>');
-      p.push('<path d="M28.6 41.6 v6.2 M35.4 41.6 v6.2" stroke="#ffffff" stroke-opacity=".8" stroke-width="1.5" stroke-linecap="round"/>');
-      p.push('<path d="M25.4 54.4 q6.6 3.4 13.2 0" fill="none" stroke="' + dark(shirt, .32) + '" stroke-width="1.4" opacity=".45"/>');
-    } else if (L.collar === 'polo') {
-      p.push('<path d="M27.2 35.5 L32 41.4 L36.8 35.5 Z" fill="' + shirtLo + '"/>');
-      p.push('<rect x="31" y="41" width="2" height="7" rx="1" fill="' + dark(shirt, .3) + '" opacity=".55"/>');
-      p.push('<circle cx="32" cy="44.2" r=".9" fill="#fff" opacity=".85"/><circle cx="32" cy="47.2" r=".9" fill="#fff" opacity=".85"/>');
-    } else if (L.collar === 'vest') {
-      p.push('<path d="M19 35.5 h7.2 v26 h-7.2 z" fill="#0b1220" opacity=".14"/>');
-      p.push('<path d="M44.8 35.5 h-7.2 v26 h7.2 z" fill="#0b1220" opacity=".14"/>');
-      p.push('<path d="M27.2 36 L32 47.4 L36.8 36" fill="none" stroke="' + accentLo + '" stroke-width="1.7" stroke-linecap="round"/>');
-      p.push('<rect x="28.4" y="46.6" width="7.2" height="8.4" rx="1.4" fill="#ffffff"/>');
-      p.push('<rect x="29.9" y="48.6" width="4.2" height="1.3" rx=".65" fill="' + accent + '"/>');
-      p.push('<rect x="29.9" y="50.8" width="4.2" height="1.3" rx=".65" fill="#94a3b8"/>');
-    }
-
-    if (opts.seatFront) {
-      var cush = opts.chairCol || '#b8c6d8';
-      p.push('<rect x="10.5" y="53" width="43" height="10.5" rx="5.2" fill="' + cush + '" stroke="' + dark(cush, .14) + '" stroke-width="1"/>');
-      p.push('<rect x="10.5" y="53" width="43" height="3.2" rx="1.6" fill="' + lite(cush, .35) + '"/>');
-    }
-    p.push('<g class="fig__arm fig__arm--l"><rect x="12.2" y="36.8" width="7.6" height="19" rx="3.6" fill="' + shirtLo + '"/>'
-      + '<rect x="12.2" y="52.6" width="7.6" height="6.6" rx="3" fill="' + skin + '"/></g>');
-    if (opts.armUp) {
-      p.push('<g class="fig__arm fig__arm--r" transform="rotate(15 47.6 38)">'
-        + '<rect x="44.2" y="21" width="7.6" height="18" rx="3.6" fill="' + shirtLo + '"/>'
-        + '<rect x="44.2" y="15.4" width="7.6" height="6.6" rx="3" fill="' + skin + '"/></g>');
-    } else {
-      p.push('<g class="fig__arm fig__arm--r"><rect x="44.2" y="36.8" width="7.6" height="19" rx="3.6" fill="' + shirtLo + '"/>'
-        + '<rect x="44.2" y="52.6" width="7.6" height="6.6" rx="3" fill="' + skin + '"/></g>');
-    }
-
-    p.push('<rect x="13.2" y="17.6" width="3.8" height="7.6" rx="1.8" fill="' + skinLo + '"/>');
-    p.push('<rect x="47" y="17.6" width="3.8" height="7.6" rx="1.8" fill="' + skinLo + '"/>');
-    p.push('<rect x="16" y="4.6" width="32" height="31" rx="8.6" fill="' + skin + '"/>');
-    p.push('<rect x="39.4" y="7.6" width="8.6" height="25" rx="4.3" fill="#7c2d12" opacity=".06"/>');
-
-    var style = L.style || 'part';
-    if (style === 'bun') p.push('<circle cx="32" cy="5.2" r="5.8" fill="' + hair + '"/>');
-    if (style === 'cap') {
-      p.push('<path d="M14.6 18.4 C14.6 8.8 22.4 3.6 32 3.6 C41.6 3.6 49.4 8.8 49.4 18.4 Z" fill="' + accentLo + '"/>');
-      p.push('<path d="M14.8 16.4 C23.6 14.4 32 15.2 37.4 19.2 L36.2 22.6 C29.8 18.6 22 17.7 14.8 19.6 Z" fill="' + accent + '"/>');
-      p.push('<circle cx="32" cy="5.8" r="2.1" fill="' + lite(accent, .35) + '"/>');
-    } else {
-      var capH = style === 'buzz' ? 12.6 : 14.8;
-      p.push('<rect x="15.2" y="4.2" width="33.6" height="' + capH + '" rx="7.2" fill="' + hair + '"/>');
-      if (style === 'part') {
-        p.push('<path d="M17.4 18.6 C18.2 12.2 22.6 7.8 29 6.6 C26.2 9.8 25.4 13 26 15.4 C21.8 15.8 19.4 16.8 17.4 18.6 Z" fill="' + hair + '"/>');
-        p.push('<path d="M30.4 6.2 C36.4 6 41.4 8.8 44.8 13.6 C40.2 11.6 35.2 11.6 30.4 13.4 Z" fill="' + lite(hair, .14) + '"/>');
-      } else if (style === 'side') {
-        p.push('<path d="M21.4 12.4 C25.4 6 35.6 4.4 42 9.8 C36.4 8.2 28.4 9.4 24.4 13.8 Z" fill="' + lite(hair, .16) + '"/>');
-      }
-    }
-
-    p.push('<rect x="22.6" y="19.4" width="7.2" height="8" rx="2.8" fill="#1b2534"/>');
-    p.push('<rect x="34.2" y="19.4" width="7.2" height="8" rx="2.8" fill="#1b2534"/>');
-    p.push('<rect x="24.4" y="21" width="2.6" height="2.6" rx="1.3" fill="#ffffff" opacity=".95"/>');
-    p.push('<rect x="36" y="21" width="2.6" height="2.6" rx="1.3" fill="#ffffff" opacity=".95"/>');
-    p.push('<circle cx="21.4" cy="28.6" r="2.2" fill="#ef8069" opacity=".2"/>');
-    p.push('<circle cx="42.6" cy="28.6" r="2.2" fill="#ef8069" opacity=".2"/>');
-
-    var brow = dark(hair, .1);
-    if (L.mouth === 'flat') {
-      p.push('<rect x="22.6" y="16.2" width="7.4" height="2" rx="1" fill="' + brow + '" transform="rotate(4 26.3 17.2)"/>');
-      p.push('<rect x="34" y="16.2" width="7.4" height="2" rx="1" fill="' + brow + '" transform="rotate(-4 37.7 17.2)"/>');
-    } else if (L.mouth === 'smirk') {
-      p.push('<rect x="22.6" y="15.4" width="7.4" height="2" rx="1" fill="' + brow + '"/>');
-      p.push('<rect x="34" y="15" width="7.4" height="2" rx="1" fill="' + brow + '"/>');
-    } else {
-      p.push('<rect x="22.6" y="15.8" width="7.4" height="2" rx="1" fill="' + brow + '"/>');
-      p.push('<rect x="34" y="15.8" width="7.4" height="2" rx="1" fill="' + brow + '"/>');
-    }
-
-    if (L.mouth === 'grin') {
-      p.push('<path d="M27.6 29.6 q4.4 5.6 8.8 0 z" fill="#7d3b2a"/>');
-      p.push('<path d="M28.8 29.9 q3.2 1.1 6.4 0 z" fill="#ffffff"/>');
-    } else if (L.mouth === 'flat') {
-      p.push('<path d="M29 30.8 h6" stroke="#a9614b" stroke-width="1.9" stroke-linecap="round"/>');
-    } else if (L.mouth === 'smirk') {
-      p.push('<path d="M28.6 30.2 q3.6 2.6 6.4 .4" fill="none" stroke="#a9614b" stroke-width="1.9" stroke-linecap="round"/>');
-    } else {
-      p.push('<path d="M28.4 29.6 q3.6 3.6 7.2 0" fill="none" stroke="#a9614b" stroke-width="1.9" stroke-linecap="round"/>');
-    }
-
-    if (L.gear === 'glasses') {
-      p.push('<g fill="#ffffff" fill-opacity=".18" stroke="#26313f" stroke-width="1.7" stroke-linejoin="round">'
-        + '<rect x="21.2" y="17.4" width="9.4" height="10.4" rx="3"/>'
-        + '<rect x="33.4" y="17.4" width="9.4" height="10.4" rx="3"/>'
-        + '<path d="M30.6 22.2 h2.8" fill="none"/>'
-        + '<path d="M21.2 20.4 h-4.2" fill="none"/>'
-        + '<path d="M42.8 20.4 h4.2" fill="none"/></g>');
-    }
-    if (L.gear === 'headset') {
-      p.push('<path d="M13.8 19.4 a18.2 18.2 0 0 1 36.4 0" fill="none" stroke="' + accentLo + '" stroke-width="2.8" stroke-linecap="round"/>');
-      p.push('<rect x="10.6" y="17.2" width="5.6" height="10.6" rx="2.5" fill="' + accentLo + '"/>');
-      p.push('<rect x="47.8" y="17.2" width="5.6" height="10.6" rx="2.5" fill="' + accentLo + '"/>');
-      p.push('<path d="M13.4 27.2 q1.8 6.6 8.4 7.6" fill="none" stroke="' + accentLo + '" stroke-width="1.7" stroke-linecap="round"/>');
-      p.push('<circle cx="22.6" cy="34.8" r="1.9" fill="' + accent + '"/>');
-    }
-
-    return p.join('');
-  }
-
-  function figSvg(L, o) {
-    var opts = o || {};
-    var h = opts.h || 62;
-    return '<svg class="fig" viewBox="0 0 64 ' + h + '" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">'
-      + figBody(L, opts) + '</svg>';
-  }
-
-  /* An empty chair for a seat nobody has taken yet. */
-  function chairSvg() {
-    return '<svg class="fig" viewBox="0 0 64 62" aria-hidden="true" focusable="false">'
-      + '<ellipse cx="32" cy="58" rx="16" ry="2.8" fill="#0f172a" opacity=".07"/>'
-      + '<rect x="16" y="18" width="32" height="31" rx="11" fill="#dce6f2" stroke="#bccbdd" stroke-width="1.4"/>'
-      + '<rect x="20" y="22" width="24" height="15" rx="7.5" fill="#eef4fb"/>'
-      + '<rect x="13" y="43" width="38" height="9" rx="4.5" fill="#cfdceb" stroke="#bccbdd" stroke-width="1.2"/>'
-      + '<path d="M19 52v5 M45 52v5" stroke="#bccbdd" stroke-width="2.6" stroke-linecap="round"/>'
-      + '<path d="M24 58h16" stroke="#bccbdd" stroke-width="2.2" stroke-linecap="round"/>'
-      + '</svg>';
-  }
-
-  /* One 2.5D workstation: wall, floor grid, desk, dual monitors, chair, plant,
-     lamp, mug and the block character typing. Ash desk + white desk run. */
-  function wsScene(o) {
-    var opt = o || {};
-    var a = opt.accent || '#2563eb';
-    var L = opt.look || LOOKS.pm;
-    var n = artId('ws');
-    var state = opt.state || 'standby';
-    var live = state === 'live';
-    var done = state === 'done';
-    var present = !!opt.present;
-    var led = live ? '#dc2626' : (done ? '#15803d' : '#94a3b8');
-    var glowOp = live ? .9 : (done ? .42 : .1);
-    var dsk = 'dk' + n;
-    var glw = 'gl' + n;
-    var s = [];
-
-    s.push('<svg class="ws__art" viewBox="0 0 220 136" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">');
-    s.push('<defs>'
-      + '<linearGradient id="' + dsk + '" x1="0" y1="0" x2="0" y2="1">'
-      + '<stop offset="0" stop-color="#f9f0e1"/><stop offset="1" stop-color="#eeddc3"/></linearGradient>'
-      + '<radialGradient id="' + glw + '">'
-      + '<stop offset="0" stop-color="' + a + '" stop-opacity=".5"/><stop offset="1" stop-color="' + a + '" stop-opacity="0"/></radialGradient>'
-      + '<linearGradient id="' + dsk + 's" x1="0" y1="0" x2="0" y2="1">'
-      + '<stop offset="0" stop-color="#e8f4ff"/><stop offset="1" stop-color="#cfe6fb"/></linearGradient>'
-      + '</defs>');
-
-    /* wall */
-    s.push('<rect x="0" y="0" width="220" height="76" fill="#f3f8fe"/>');
-    s.push('<rect x="0" y="72" width="220" height="5" fill="#e2eaf5"/>');
-    s.push('<path d="M6 0v76" stroke="#dde7f4" stroke-width="2"/>');
-    s.push('<path d="M214 0v76" stroke="#dde7f4" stroke-width="2"/>');
-    s.push('<rect x="14" y="6" width="114" height="52" rx="4" fill="#ffffff" stroke="#dbe6f4"/>');
-    s.push('<rect x="19" y="11" width="104" height="42" rx="2" fill="url(#' + dsk + 's)"/>');
-    s.push('<path d="M71 11v42 M19 32h104" stroke="#ffffff" stroke-width="3.4"/>');
-    s.push('<path d="M24 27c9-9 22-7 28 1" stroke="#ffffff" stroke-width="2.4" fill="none" opacity=".55"/>');
-    s.push('<rect x="14" y="57" width="114" height="3.6" rx="1.8" fill="#e8f0fa"/>');
-    s.push('<circle cx="197" cy="18" r="7.4" fill="#ffffff" stroke="#dbe6f4" stroke-width="1.4"/>');
-    s.push('<path d="M197 13.6v4.6l3 1.8" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-linecap="round"/>');
-    s.push('<rect x="176" y="40" width="30" height="26" rx="3" fill="#ffffff" stroke="#e1eaf6"/>');
-    s.push('<rect x="176" y="40" width="30" height="3.6" rx="1.8" fill="' + a + '" opacity=".6"/>');
-    s.push('<path d="M182 55 h18 M182 50 h12 M182 45.4 h15" stroke="#dbe6f4" stroke-width="1.6" stroke-linecap="round"/>');
-
-    /* floor + grid + rug */
-    s.push('<rect x="0" y="77" width="220" height="59" fill="#e9eff7"/>');
-    s.push('<path d="M0 86h220M0 98h220M0 112h220M0 128h220" stroke="#dae4f0" stroke-width="1"/>');
-    s.push('<path d="M110 77 L30 136M110 77 L72 136M110 77 L110 136M110 77 L148 136M110 77 L190 136" stroke="#dce6f2" stroke-width="1"/>');
-    s.push('<ellipse cx="112" cy="116" rx="92" ry="18" fill="' + a + '" opacity=".06"/>');
-    s.push('<ellipse cx="112" cy="133" rx="94" ry="5" fill="#0f172a" opacity=".07"/>');
-
-    /* chair + character */
-    if (present) {
-      s.push('<g transform="translate(118,23) scale(1.06)">' + figBody(L, { chair: true, chairCol: '#a3b1c4' }) + '</g>');
-    } else {
-      s.push('<g><rect x="130" y="60" width="44" height="26" rx="11" fill="#d6e1ee" stroke="#c2d0e0"/>'
-        + '<rect x="130" y="60" width="44" height="5" rx="2.5" fill="#e8eff8"/>'
-        + '<rect x="134" y="78" width="36" height="6" rx="3" fill="#cfdbeb"/></g>');
-    }
-
-    /* desk */
-    s.push('<polygon points="26,88 194,88 208,101 12,101" fill="url(#' + dsk + ')" stroke="#e8d6ba"/>');
-    s.push('<polygon points="12,101 208,101 208,113 12,113" fill="#e3cdaa"/>');
-    s.push('<polygon points="12,113 208,113 208,116 12,116" fill="#cfb492"/>');
-    s.push('<rect x="148" y="104" width="48" height="7" rx="2" fill="#f0e0c6"/>');
-    s.push('<rect x="164" y="106.6" width="16" height="1.8" rx=".9" fill="#b69975"/>');
-    s.push('<polygon points="24,113 34,113 32,132 22,132" fill="#cbae8d"/>');
-    s.push('<polygon points="186,113 196,113 198,132 188,132" fill="#c1a586"/>');
-
-    /* dual monitors, screens turned away */
-    function mon(x, y, w, h) {
-      var cx = w / 2;
-      return '<g transform="translate(' + x + ',' + y + ')">'
-        + '<rect x="0" y="0" width="' + w + '" height="' + h + '" rx="2.6" fill="#c6d4e5" stroke="#a9bad0"/>'
-        + '<rect x="3.4" y="3.4" width="' + (w - 6.8) + '" height="' + (h - 13) + '" rx="2" fill="#b3c4d8"/>'
-        + '<path d="M7 ' + (9.4) + ' h' + (w - 14) + ' M7 ' + (13.4) + ' h' + (w - 14) + ' M7 ' + (17.4) + ' h' + (w - 20) + '" stroke="#a3b5cb" stroke-width="1.3" stroke-linecap="round"/>'
-        + '<path d="M2 0h' + (w - 4) + 'l0 2.2H2z" fill="#ffffff" opacity=".55"/>'
-        + '<rect x="4" y="1.4" width="5" height="1.8" rx=".9" fill="' + led + '"/>'
-        + '<path d="M' + (cx - 6) + ' ' + h + ' h12 l-3 5 h-6 z" fill="#a6b6ca"/>'
-        + '<ellipse cx="' + cx + '" cy="' + (h + 6) + '" rx="11" ry="2.4" fill="#93a4ba"/>'
-        + '</g>';
-    }
-    s.push(mon(38, 58, 44, 28));
-    s.push(mon(90, 55, 46, 30));
-    s.push('<ellipse class="ws__glow" cx="86" cy="74" rx="78" ry="30" fill="url(#' + glw + ')" opacity="' + glowOp + '"/>');
-
-    /* plant, lamp, keyboard, mug, hands */
-    s.push('<polygon points="27,80 39,80 37,88 29,88" fill="#d9a273"/>');
-    s.push('<rect x="26" y="79" width="14" height="2.4" rx="1.2" fill="#e7b98c"/>');
-    s.push('<ellipse cx="33" cy="74.6" rx="5" ry="4.4" fill="#4f9d6d"/>');
-    s.push('<ellipse cx="27.6" cy="76.4" rx="4" ry="3.4" fill="#3f8a5c"/>');
-    s.push('<ellipse cx="38.4" cy="76.2" rx="3.8" ry="3.2" fill="#5fb07c"/>');
-    s.push('<path d="M33 79 v-6" stroke="#3f8a5c" stroke-width="1.2"/>');
-    s.push('<polygon points="140,90.6 168,90.6 171,96.4 137,96.4" fill="#f2f7fd" stroke="#c5d3e2"/>');
-    s.push('<path d="M144 92.4 h19 M143 94.4 h21" stroke="#d7e2ef" stroke-width="1.1"/>');
-    s.push('<g><rect x="176" y="88" width="9" height="9.4" rx="2" fill="#ffffff" stroke="#cbd5e1"/>'
-      + '<path d="M185 90.4 a2.8 2.8 0 0 1 0 4.8" fill="none" stroke="#cbd5e1" stroke-width="1.4"/></g>');
-    if (present) {
-      var hd = dark(L.skin, .16);
-      s.push('<g class="ws__hands">'
-        + '<rect x="130.6" y="89" width="8.6" height="6.2" rx="3" fill="' + L.skin + '" stroke="' + hd + '" stroke-width=".8"/>'
-        + '<rect x="164.8" y="89" width="8.6" height="6.2" rx="3" fill="' + L.skin + '" stroke="' + hd + '" stroke-width=".8"/></g>');
-    }
-    if (live) {
-      s.push('<circle class="ws__onair" cx="61" cy="52.4" r="2.2" fill="#dc2626"/>');
-    }
-
-    s.push('</svg>');
-    return s.join('');
-  }
+  function deptAccent(id) { return Art.deptAccent(id); }
+  function lookFor(role) { return Art.lookFor(role); }
+  function figSvg(L, o) { return Art.figure(L, o || {}); }
+  function chairSvg() { return Art.chair(); }
+  function wsScene(o) { return Art.scene(o || {}); }
 
   /* ── render: AI HQ live control room ─────────────────────────────────── */
 
@@ -879,8 +554,8 @@
     return t('hq.seat.empty');
   }
 
-  /* One department card = one diorama: desk, monitors, chair and the block
-     character of whoever holds that monitor right now. */
+  /* One department card = one clay diorama room (local WebP) with the clay
+     figure of whoever holds that monitor sitting in it right now. */
   function monitorHtml(meta, snap, byId) {
     var st = snap.monitors[meta.id] || 'standby';
     var holder = snap.holders[meta.id] || null;
@@ -910,7 +585,8 @@
     var look = lookFor(role || { kind: 'pm', accent: accent });
     return '<li class="monitor is-' + st + (meta.id === state.room ? ' is-current' : '') + '" data-monitor="' + esc(meta.id) + '" data-state="' + st + '">'
       + '<div class="monitor__scene">'
-      + wsScene({ accent: accent, look: look, present: !!holder, state: st })
+      + wsScene({ roomId: meta.id, accent: accent, look: look, present: !!holder, state: st })
+      + (st === 'live' ? '<span class="monitor__say" aria-hidden="true">' + esc(line) + '</span>' : '')
       + '<span class="monitor__head"><span class="monitor__glyph" aria-hidden="true">' + esc(String(meta.glyph || '').slice(0, 1)) + '</span>'
       + '<span class="monitor__name">' + esc(label) + '</span></span>'
       + '</div>'
@@ -921,15 +597,15 @@
       + '</li>';
   }
 
-  /* A seat at the central table: the block character sits on a chair, name and
-     state under it. Before the meeting starts the chair is empty. */
+  /* A seat at the clay meeting table: a figure on a stool, name and state
+     under it. Before the meeting starts the stool is empty. */
   function seatHtml(seat, byId, front) {
     var role = byId[seat.roleId];
     var look = lookFor(role || { kind: 'pm', accent: seat.accent });
     var up = seat.state === 'live';
     var fig = seat.state === 'empty'
       ? chairSvg()
-      : figSvg(look, { h: 62, armUp: up, chair: true, chairCol: '#b8c6d8', seatFront: !!front });
+      : figSvg(look, { armUp: up, chair: true, chairCol: '#A87A4C', seatFront: !!front });
     return '<li class="seat is-' + seat.state + '" data-seat="' + esc(seat.roleId) + '" data-state="' + seat.state + '">'
       + '<span class="seat__avatar" style="--role:' + esc(seat.accent) + '" aria-hidden="true">' + fig + '</span>'
       + '<span class="seat__body"><span class="seat__name">' + esc(seat.name) + '</span>'
