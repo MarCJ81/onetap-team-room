@@ -83,6 +83,20 @@
       skin: '#E8B58C', hair: '#2F2119', style: 'buzz', hat: '#4F7057',
       shirt: '#5E7F60', collar: 'hoodie', gear: 'headset', mouth: 'smile'
     },
+    /* Appointed seats: design (long bob + glasses + knit), video (long hair,
+       headphones, open collar, clapperboard), sales (curls, blazer, folder). */
+    design: {
+      skin: '#F3CBA8', hair: '#4A2F2A', style: 'bob', hat: '#A85C63',
+      shirt: '#A85C63', collar: 'knit', gear: 'glasses', mouth: 'smile', prop: 'pencil'
+    },
+    video: {
+      skin: '#EBB88F', hair: '#3A2B33', style: 'long', hat: '#8A5A6B',
+      shirt: '#8A5A6B', collar: 'collar', gear: 'headset', mouth: 'grin', prop: 'clapper'
+    },
+    sales: {
+      skin: '#F0C29A', hair: '#2E241C', style: 'curl', hat: '#A8492A',
+      shirt: '#A8492A', collar: 'blazer', gear: 'none', mouth: 'smirk', prop: 'folder'
+    },
     growth: {
       skin: '#F4CFAC', hair: '#4A3324', style: 'cap', hat: '#7A6A2E',
       shirt: '#C79A3C', collar: 'polo', gear: 'none', mouth: 'grin'
@@ -100,7 +114,7 @@
   var HAIR_VARIANTS = ['#3B2A20', '#5A3E2B', '#6E4B31', '#2E241C', '#7A5236', '#4A3548'];
   var HAT_VARIANTS = ['#B45309', '#4F7057', '#96690D', '#A85C63', '#8A5A6B', '#8A6A47'];
   var SHIRT_VARIANTS = ['#C4703E', '#5E7F60', '#C79A3C', '#A85C63', '#7E6478', '#8A6A47', '#B0703E'];
-  var STYLE_VARIANTS = ['beanie', 'buzz', 'side', 'bun', 'cap', 'bob'];
+  var STYLE_VARIANTS = ['beanie', 'buzz', 'side', 'bun', 'cap', 'bob', 'long', 'curl'];
   var MOUTH_VARIANTS = ['smile', 'grin', 'smirk', 'flat'];
 
   function lookFor(role) {
@@ -223,6 +237,17 @@
     } else if (coll === 'polo') {
       p.push('<path d="M40 56l8 6 8-6" fill="none" stroke="' + shirtLo + '" stroke-width="2.4" stroke-linecap="round"/>');
       p.push('<path d="M48 62v6" stroke="' + dark(shirt, .3) + '" stroke-width="1.6" opacity=".5"/>');
+    } else if (coll === 'collar') {
+      /* Open shirt collar: two folded points and a button line. */
+      p.push('<path d="M38 52l10 10 10-10-4-2-6 5-6-5z" fill="' + lite(shirt, .32) + '" stroke="' + dark(shirt, .16) + '" stroke-width=".6"/>');
+      p.push('<path d="M48 62v9" stroke="' + dark(shirt, .28) + '" stroke-width="1.3" opacity=".55"/>');
+      p.push('<circle cx="48" cy="68" r=".9" fill="' + lite(shirt, .4) + '"/><circle cx="48" cy="72" r=".9" fill="' + lite(shirt, .4) + '"/>');
+    } else if (coll === 'blazer') {
+      /* Blazer lapels over the shirt, with a folded pocket square. */
+      p.push('<path d="M28 61c0-4 3-6 9-7l11 10-9 6c-6-1-11-4-11-9z" fill="' + dark(shirt, .2) + '"/>');
+      p.push('<path d="M68 61c0-4-3-6-9-7l-11 10 9 6c6-1 11-4 11-9z" fill="' + dark(shirt, .2) + '"/>');
+      p.push('<path d="M40 54l8 10 8-10" fill="none" stroke="' + lite(shirt, .38) + '" stroke-width="1.5" stroke-linecap="round"/>');
+      p.push('<rect x="56" y="74" width="7" height="2.2" rx="1.1" fill="#FBF3E4" opacity=".8"/>');
     }
 
     /* arms: resting at the sides, typing toward the middle, or raised */
@@ -253,6 +278,21 @@
     p.push(arm('l', opts.armUp ? 'rest' : (opts.typing ? 'typing' : 'rest')));
     p.push(arm('r', opts.armUp ? 'up' : (opts.typing ? 'typing' : 'rest')));
 
+    /* small clay props so the three appointed seats read apart at a glance */
+    if (L.prop === 'pencil') {
+      p.push('<g transform="rotate(22 70 34)"><rect x="66.6" y="25" width="3.4" height="14" rx="1.3" fill="#E0A03A"/>'
+        + '<path d="M66.6 25l1.7-3.2 1.7 3.2z" fill="#3A2A1C"/>'
+        + '<rect x="66.6" y="34.6" width="3.4" height="2.2" fill="#A85C63"/></g>');
+    } else if (L.prop === 'clapper') {
+      p.push('<g transform="rotate(-9 24 85)"><rect x="11" y="79" width="21" height="14" rx="2" fill="#3A2A1C"/>'
+        + '<rect x="11" y="79" width="21" height="5.4" rx="2" fill="#F4E3C8"/>'
+        + '<path d="M14 80l4 4M20 80l4 4M26 80l3.4 3.4" stroke="#3A2A1C" stroke-width="1.2"/></g>');
+    } else if (L.prop === 'folder') {
+      p.push('<g transform="rotate(-7 24 85)"><rect x="13" y="79" width="21" height="14" rx="2" fill="#C79A3C"/>'
+        + '<rect x="15.4" y="77" width="17" height="4" rx="1.4" fill="#E6C98E"/>'
+        + '<path d="M16.4 86h15M16.4 90h10" stroke="#8A6A47" stroke-width="1.1"/></g>');
+    }
+
     /* head */
     p.push('<ellipse cx="23" cy="42" rx="4.6" ry="5.4" fill="' + skin + '"/>');
     p.push('<ellipse cx="73" cy="42" rx="4.6" ry="5.4" fill="' + skin + '"/>');
@@ -276,6 +316,12 @@
     } else if (style === 'bob') {
       p.push('<path d="M20 44c0-18 12-30 28-30s28 12 28 30c0 7-2 11-4 12-1-9-3-14-5-17-6 5-32 5-38 0-2 3-4 8-5 17-2-1-4-5-4-12z" fill="' + hair + '"/>');
       p.push('<path d="M24 38c3-11 12-18 24-18" stroke="' + lite(hair, .16) + '" stroke-width="2.2" fill="none" opacity=".45"/>');
+    } else if (style === 'long') {
+      p.push('<path d="M20 44c0-18 12-30 28-30s28 12 28 30c0 10-1 18-2 24-3 2-6 1-7-2 1-6 1-11 0-15-6 4-32 4-38 0-1 4-1 9 0 15-1 3-4 4-7 2-1-6-2-14-2-24z" fill="' + hair + '"/>');
+      p.push('<path d="M25 36c3-10 11-17 22-18" stroke="' + lite(hair, .16) + '" stroke-width="2.2" fill="none" opacity=".45"/>');
+    } else if (style === 'curl') {
+      p.push('<g fill="' + hair + '"><circle cx="31" cy="26" r="9"/><circle cx="42" cy="18.5" r="9"/><circle cx="54" cy="19" r="8"/><circle cx="64" cy="27" r="8"/><circle cx="26" cy="37" r="6"/><circle cx="70" cy="37" r="6"/></g>');
+      p.push('<path d="M33 22c4-5 10-7 16-7" stroke="' + lite(hair, .18) + '" stroke-width="2" fill="none" opacity=".4"/>');
     } else if (style === 'cap') {
       p.push('<path d="M23 37c0-14 11-24 25-24s25 10 25 24c0 2-.4 4-1 6-11-6-37-6-48 0-.6-2-1-4-1-6z" fill="' + hat + '"/>');
       p.push('<path d="M67 36c7 0 12 2 13 5-2 3-10 4-16 2z" fill="' + dark(hat, .16) + '"/>');

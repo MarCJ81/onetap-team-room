@@ -16,8 +16,8 @@
       name: { ko: '전체 회의', en: 'All-hands' },
       short: { ko: '전체', en: 'All' },
       desc: {
-        ko: '부서를 넘는 결정을 다섯 역할이 한 번씩 봅니다.',
-        en: 'A decision that crosses departments, seen by all five seats.'
+        ko: '부서를 넘는 결정을 여덟 역할이 한 번씩 봅니다.',
+        en: 'A decision that crosses departments, seen by all eight seats.'
       }
     },
     {
@@ -92,17 +92,33 @@
     }
   ];
 
-  /* kind = which reasoning engine the role uses; name is only a label */
+  /* The model each role is appointed to in Pro mode. One provider key is still
+     enough to run a round: when the connected provider differs, the round uses
+     the connected provider’s model and the roster says so. */
+  var MODELS = {
+    gpt: { id: 'gpt', label: 'GPT', provider: 'openai', model: 'gpt-4o-mini' },
+    gemini: { id: 'gemini', label: 'Gemini', provider: 'gemini', model: 'gemini-2.5-flash' },
+    claude: { id: 'claude', label: 'Claude', provider: 'claude', model: 'claude-sonnet-4-20250514' }
+  };
+
+  /* kind = which reasoning engine the role uses; name is only a label.
+     Order is the speaking order: plan → build → design → video → growth →
+     sales → finance, with the cross-audit reading every answer last. */
   var ROLE_ARCHETYPES = [
     {
       kind: 'pm',
       tag: 'PM',
       glyph: 'P',
       accent: '#b45309',
+      model: 'gemini',
       name: { ko: '기획 리드', en: 'Product Lead' },
       focus: {
         ko: '범위와 일정, 성공 지표 하나',
         en: 'Scope, dates and one success metric'
+      },
+      tone: {
+        ko: '범위를 먼저 좁히고 결정 하나로 말합니다.',
+        en: 'Narrows the scope first and speaks in one decision.'
       }
     },
     {
@@ -110,10 +126,49 @@
       tag: 'DEV',
       glyph: 'D',
       accent: '#4f7057',
+      model: 'claude',
       name: { ko: '개발 리드', en: 'Tech Lead' },
       focus: {
         ko: '아키텍처, API 계약, 배포와 품질',
         en: 'Architecture, API contract, deploys and quality'
+      },
+      tone: {
+        ko: '계약과 롤백 경로를 먼저 적습니다.',
+        en: 'Writes the contract and the rollback path first.'
+      }
+    },
+    {
+      kind: 'design',
+      tag: 'DESIGN',
+      glyph: 'Ds',
+      accent: '#a85c63',
+      model: 'gpt',
+      appointed: true,
+      name: { ko: '디자인 리드', en: 'Design Lead' },
+      focus: {
+        ko: '화면 구조, 시각 위계, 브랜드 일관성',
+        en: 'Layout, visual hierarchy and brand consistency'
+      },
+      tone: {
+        ko: '취향 대신 순서와 기준으로 말합니다.',
+        en: 'Talks in order and criteria, not taste.'
+      }
+    },
+    {
+      kind: 'video',
+      tag: 'VIDEO',
+      glyph: 'V',
+      accent: '#8a5a6b',
+      model: 'gemini',
+      appointed: true,
+      name: { ko: '영상 PD', en: 'Video PD' },
+      focus: {
+        ko: '숏폼 구성, 장면 전환, 첫 5초',
+        en: 'Short-form structure, cuts and the first five seconds'
+      },
+      tone: {
+        ko: '한 편을 끝내는 일정으로 말합니다.',
+        en: 'Speaks in one finished cut, not a shoot list.'
       }
     },
     {
@@ -121,10 +176,32 @@
       tag: 'GROWTH',
       glyph: 'G',
       accent: '#96690d',
+      model: 'gpt',
       name: { ko: '그로스 리드', en: 'Growth Lead' },
       focus: {
         ko: '채널, 메시지, 전환 측정',
         en: 'Channel, message and conversion'
+      },
+      tone: {
+        ko: '한 채널에서 먼저 검증합니다.',
+        en: 'Proves it in one channel first.'
+      }
+    },
+    {
+      kind: 'sales',
+      tag: 'SALES',
+      glyph: 'S',
+      accent: '#a8492a',
+      model: 'claude',
+      appointed: true,
+      name: { ko: '영업 리드', en: 'Sales Lead' },
+      focus: {
+        ko: '고객 제안, 계약 논리, 반론 대응',
+        en: 'Proposals, contract logic and objections'
+      },
+      tone: {
+        ko: '이미 문의한 고객의 다음 단계부터 말합니다.',
+        en: 'Starts from the next step of a customer who already asked.'
       }
     },
     {
@@ -132,10 +209,15 @@
       tag: 'CFO',
       glyph: 'C',
       accent: '#8a5a4a',
+      model: 'claude',
       name: { ko: '재무·법률', en: 'Finance & Legal' },
       focus: {
         ko: '예산, 회수 구조, 약관과 개인정보',
         en: 'Budget, payback, terms and privacy'
+      },
+      tone: {
+        ko: '상한과 회수 기간을 숫자로 말합니다.',
+        en: 'Speaks in caps and payback periods.'
       }
     },
     {
@@ -143,15 +225,20 @@
       tag: 'AUDITOR',
       glyph: 'A',
       accent: '#7a5a7e',
+      model: 'gemini',
       name: { ko: '교차검수', en: 'Cross-audit' },
       focus: {
         ko: '앞선 답변의 숫자·출처·책임',
         en: 'Numbers, sources and owners in the answers above'
+      },
+      tone: {
+        ko: '인용하고 다시 계산해 조건을 답니다.',
+        en: 'Quotes, recomputes and attaches conditions.'
       }
     }
   ];
 
-  var FOCUS_OPTIONS = ['pm', 'dev', 'growth', 'cfo', 'auditor'];
+  var FOCUS_OPTIONS = ['pm', 'dev', 'design', 'video', 'growth', 'sales', 'cfo', 'auditor'];
 
   /* Which department monitor lights up when a role takes the floor. Keys are
      role kinds, values are room ids from ROOMS above. A role the user adds
@@ -159,7 +246,10 @@
   var ROLE_ROOM = {
     pm: 'plan',
     dev: 'dev',
+    design: 'design',
+    video: 'video',
     growth: 'marketing',
+    sales: 'sales',
     cfo: 'ops',
     auditor: 'general'
   };
@@ -353,56 +443,80 @@
     general: {
       pm: { ko: '부서마다 흩어진 결정을 한 장에 모아', en: 'collecting the decisions from every department into one page' },
       dev: { ko: '서로 다른 시스템의 연결 지점을 확인해서', en: 'checking where the systems meet' },
+      design: { ko: '한 화면에서 눈이 머무는 순서를 정해서', en: 'fixing the order the eye travels across one screen' },
+      video: { ko: '첫 5초에 결론이 보이는 한 편으로', en: 'one cut whose point lands in five seconds' },
       growth: { ko: '지금 반응이 오는 채널 하나만', en: 'starting with one channel that already answers' },
+      sales: { ko: '이미 문의가 온 고객부터', en: 'starting with the customers who already asked' },
       cfo: { ko: '이번 달에 나가는 돈만', en: 'only money leaving this month' },
       auditor: { ko: '누가 언제 한다는 말이 빠졌는지', en: 'whether anyone said who does it and when' }
     },
     plan: {
       pm: { ko: '로드맵 순서를 먼저 고정해서', en: 'fixing the roadmap order first' },
       dev: { ko: '기술적으로 걸리는 지점을 먼저 표시해서', en: 'marking the technical blockers first' },
+      design: { ko: '이번 분기 화면 한 개로 좁혀서', en: 'narrowing it to one screen this quarter' },
+      video: { ko: '영상 한 편을 일정에 먼저 넣어서', en: 'putting one finished video on the calendar first' },
       growth: { ko: '이미 반복되는 요청부터 모아서', en: 'starting with the requests that already repeat' },
+      sales: { ko: '고객이 물어본 순서대로 우선순위를 잡아', en: 'ordering it by what customers already asked' },
       cfo: { ko: '이번 분기 사람 시간을 비용으로 넣어', en: 'counting people\u2019s hours as cost' },
       auditor: { ko: '일정과 담당이 같이 적혔는지', en: 'whether the date and owner are written together' }
     },
     dev: {
       pm: { ko: '스프린트 단위로 쪼개서', en: 'cutting it into sprint-sized pieces' },
       dev: { ko: 'API 계약과 롤백 경로를 먼저', en: 'pinning the API contract and a rollback path first' },
+      design: { ko: '빈 화면과 오류 화면까지 같이 그려서', en: 'drawing empty and error states too' },
+      video: { ko: '녹화와 편집을 자동화할 수 있는지 보고', en: 'checking what can be recorded and cut automatically' },
       growth: { ko: '개발자 커뮤니티 반응부터', en: 'starting with developer communities' },
+      sales: { ko: '데모 환경이 바로 열리는지 확인해서', en: 'confirming the demo environment opens' },
       cfo: { ko: '서버와 도구 비용까지 넣어', en: 'counting server and tool cost' },
       auditor: { ko: '롤백 경로와 오류 로그가 있는지', en: 'whether a rollback path and error logs exist' }
     },
     design: {
       pm: { ko: '범위를 한 화면으로 좁혀서', en: 'narrowing it to one screen' },
       dev: { ko: '구현 비용이 큰 요소를 표시해서', en: 'flagging what is expensive to build' },
+      design: { ko: '시안 두 개를 같은 과업으로 비교해서', en: 'comparing two directions on the same task' },
+      video: { ko: '움직임을 먼저 15초로 확인해서', en: 'checking the motion in a 15-second pass first' },
       growth: { ko: '실제 사용자 5명의 반응부터', en: 'starting from five real users' },
+      sales: { ko: '화면이 고객에게 무엇을 약속하는지', en: 'what the screen promises the customer' },
       cfo: { ko: '시안 제작 시간과 도구 비용을 넣어', en: 'counting design hours and tool cost' },
       auditor: { ko: '판단 기준이 취향이 아닌지', en: 'whether the criteria are taste or evidence' }
     },
     video: {
       pm: { ko: '한 편을 끝내는 일정으로 끊어서', en: 'cutting it to one finished video' },
       dev: { ko: '업로드와 자막 자동화가 되는지', en: 'whether upload and captions can be automated' },
+      design: { ko: '썸네일과 자막의 시각 위계를', en: 'the hierarchy of the thumbnail and captions' },
+      video: { ko: '한 편을 끝까지 만들고 다음 편을', en: 'finishing one cut before the next' },
       growth: { ko: '첫 5초와 썸네일부터', en: 'starting with the first five seconds and the thumbnail' },
+      sales: { ko: '이 영상이 어떤 고객을 부르는지', en: 'which customer the video calls in' },
       cfo: { ko: '촬영·편집 외주비를 나눠서', en: 'splitting shoot and edit cost' },
       auditor: { ko: '다시 쓸 수 있는 소재가 남는지', en: 'whether reusable footage is left over' }
     },
     marketing: {
       pm: { ko: '캠페인을 2주 단위로 끊어', en: 'cutting the campaign into two-week blocks' },
       dev: { ko: '측정 이벤트가 실제로 찍히는지', en: 'whether the tracking events actually fire' },
+      design: { ko: '랜딩 한 화면의 시선 순서를', en: 'the reading order of one landing screen' },
+      video: { ko: '같은 소재로 숏폼 세 편을', en: 'three short cuts from the same footage' },
       growth: { ko: '랜딩 문구와 채널 단가를 같이', en: 'pairing landing copy with channel cost' },
+      sales: { ko: '문의가 계약으로 이어지는 문장을', en: 'the line that turns an inquiry into a deal' },
       cfo: { ko: '광고비와 제작비를 나눠서', en: 'separating media spend from production cost' },
       auditor: { ko: '전환율의 기준값과 측정 창을', en: 'the baseline and window behind the conversion rate' }
     },
     sales: {
       pm: { ko: '파이프라인 단계를 줄여서', en: 'cutting the pipeline stages' },
       dev: { ko: '데모 환경이 바로 열리는지', en: 'whether a demo environment is ready' },
+      design: { ko: '제안서 한 장의 위계를', en: 'the hierarchy of a one-page proposal' },
+      video: { ko: '고객 사례 60초를', en: 'a 60-second customer story' },
       growth: { ko: '이미 문의가 온 곳부터', en: 'starting where inquiries already come in' },
+      sales: { ko: '반론 세 개를 먼저 정리해서', en: 'writing down the three objections first' },
       cfo: { ko: '단가와 할인 한도를 같이', en: 'pairing price with a discount limit' },
       auditor: { ko: '누가 언제 후속 연락하는지', en: 'who follows up and when' }
     },
     ops: {
       pm: { ko: '프로세스 변경을 한 번에 하나씩', en: 'changing one process at a time' },
       dev: { ko: '도구 연동과 권한 설정을 확인해서', en: 'checking tool integrations and permissions' },
+      design: { ko: '안내 화면과 빈 상태를', en: 'the notice screen and the empty states' },
+      video: { ko: '환불·교환 안내를 30초로', en: 'a 30-second refund and exchange clip' },
       growth: { ko: '기존 고객의 재구매 신호를', en: 'checking repeat-purchase signals from current customers' },
+      sales: { ko: '재구매 문의를 제안으로', en: 'turning repeat inquiries into proposals' },
       cfo: { ko: '도구 구독과 환불 비용을', en: 'tool subscriptions and refund cost' },
       auditor: { ko: '예외 처리와 책임자가 정해졌는지', en: 'whether exceptions and owners are defined' }
     }
@@ -425,6 +539,7 @@
   var Data = {
     ROOMS: ROOMS,
     ROLE_ARCHETYPES: ROLE_ARCHETYPES,
+    MODELS: MODELS,
     FOCUS_OPTIONS: FOCUS_OPTIONS,
     ROLE_ROOM: ROLE_ROOM,
     SAMPLES: SAMPLES,

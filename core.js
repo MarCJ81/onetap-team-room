@@ -251,7 +251,7 @@
 
   function defaultRoles() {
     return Data.ROLE_ARCHETYPES.map(function (r, i) {
-      return { id: r.kind, kind: r.kind, tag: r.tag, glyph: r.glyph, accent: r.accent, index: i };
+      return { id: r.kind, kind: r.kind, tag: r.tag, glyph: r.glyph, accent: r.accent, model: r.model, index: i };
     });
   }
 
@@ -263,7 +263,10 @@
       return {
         pm: { en: 'framing ' + n + ' work as one decision' },
         dev: { en: 'checking what ' + n + ' needs from systems and tools' },
+        design: { en: 'fixing the order one ' + n + ' screen reads in' },
+        video: { en: 'cutting ' + n + ' into one finished minute' },
         growth: { en: 'starting with the channel ' + n + ' already uses' },
+        sales: { en: 'starting with the customers who already asked about ' + n },
         cfo: { en: 'counting only ' + n + '\u2019s cost lines this month' },
         auditor: { en: 'whether someone in ' + n + ' owns the next step' }
       };
@@ -271,7 +274,10 @@
     return {
       pm: { ko: '“' + n + '” 업무를 결정 하나로 좁혀서' },
       dev: { ko: n + '에서 쓰는 시스템과 도구를 먼저 확인해서' },
+      design: { ko: n + ' 화면의 시선 순서를 먼저 정해서' },
+      video: { ko: n + '을 60초 한 편으로 끊어서' },
       growth: { ko: n + '에서 이미 통하는 채널부터' },
+      sales: { ko: n + '을 이미 문의한 고객부터' },
       cfo: { ko: n + '의 이번 달 지출 항목만' },
       auditor: { ko: n + ' 담당자가 정해졌는지' }
     };
@@ -450,6 +456,204 @@
         ],
         claims: [
           { role: 'dev', quote: 'the API contract on one page', problem: 'response examples and error codes are missing, so QA reads the same thing twice.' }
+        ]
+      }
+    };
+    return t[ctx.lang];
+  }
+
+  /* The design, video and sales seats were appointed for the three departments
+     that used to open empty. Each one reasons in its own craft, and each one
+     leaves a concrete deliverable behind (see buildOutputs). */
+  function buildDesign(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    var seed = ctx.seed + 53;
+    var mod = ctx.mods.design[ctx.lang];
+    var t = {
+      ko: {
+        blocks: [
+          { kind: 'view', title: '관점', lines: [
+            '이 안건은 화면에서 무엇을 먼저 보게 할지의 문제입니다. 요소를 더하기 전에 순서를 정합니다.',
+            josa(a.noun, '을를') + ' 한 화면에 담는다면 결정 지점은 하나여야 합니다. ' + mod + ' 확인합니다.'
+          ] },
+          { kind: 'plan', title: '제안', lines: [
+            '한 화면에 주장 한 줄, 근거 세 줄, 행동 버튼 하나. 이 셋을 넘으면 다음 화면으로 넘깁니다.',
+            '판단은 ' + a.metric + ' 하나로 합니다. 시안 두 개를 같은 과업으로 비교하고, 5명이 끝내는지 봅니다.',
+            '브랜드 색과 타이포는 기존 값을 그대로 씁니다. 화면마다 새로 정하면 일관성이 먼저 깨집니다.'
+          ] },
+          { kind: 'risk', title: '리스크', lines: [
+            '취향으로 고르면 두 주 뒤에 다시 바꿉니다. 기준을 문서로 남기지 않으면 같은 회의를 반복합니다.',
+            '빈 화면과 오류 화면을 빼고 넘기면 사용자는 첫 화면에서 멈춥니다.'
+          ] },
+          { kind: 'ask', title: '요청', lines: [
+            ctx.pm.name + '에게 이 화면을 볼 사용자 5명, ' + ctx.growth.name + '에게 실제 문의 문장 3개를 요청합니다. 두 자료가 없으면 시안 비교를 시작하지 않습니다.'
+          ] }
+        ],
+        items: [
+          item(seed + 'd1', ctx.design.name, '오늘', '같은 과업으로 시안 2안 제작'),
+          item(seed + 'd2', ctx.design.name, '2일차', '사용자 5명 과업 완료율 기록'),
+          item(seed + 'd3', ctx.design.name, '1일차', '브랜드 색·타이포 기준 1장')
+        ],
+        claims: [
+          { role: 'design', quote: '한 화면에 결정 지점 하나', problem: '누구에게 보여줄지 대상이 없습니다. 대상이 없으면 비교가 취향이 됩니다.' }
+        ]
+      },
+      en: {
+        blocks: [
+          { kind: 'view', title: 'View', lines: [
+            'This is a question of what the screen shows first. Order comes before another element.',
+            'If it has to fit one screen, there is one decision point. ' + mod + '.'
+          ] },
+          { kind: 'plan', title: 'Plan', lines: [
+            'One claim, three supporting lines, one button. Anything past that moves to the next screen.',
+            'Judge it on one measure, ' + a.metric + ': two directions, the same task, five people.',
+            'Keep the existing brand color and type. Re-deciding them per screen breaks consistency first.'
+          ] },
+          { kind: 'risk', title: 'Risk', lines: [
+            'Choosing by taste means redoing it in two weeks. Without written criteria, we hold this meeting again.',
+            'Skipping empty and error states stops the user on their first screen.'
+          ] },
+          { kind: 'ask', title: 'Ask', lines: [
+            'Five users for this screen from ' + ctx.pm.name + ', and three real inquiry sentences from ' + ctx.growth.name + '. Without both, the comparison should not start.'
+          ] }
+        ],
+        items: [
+          item(seed + 'd1', ctx.design.name, 'today', 'Two directions on the same task'),
+          item(seed + 'd2', ctx.design.name, 'day 2', 'Task completion for five users'),
+          item(seed + 'd3', ctx.design.name, 'day 1', 'One-page color and type basis')
+        ],
+        claims: [
+          { role: 'design', quote: 'one decision point per screen', problem: 'the audience is not named. Without an audience the comparison is taste.' }
+        ]
+      }
+    };
+    return t[ctx.lang];
+  }
+
+  function buildVideo(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    var seed = ctx.seed + 61;
+    var mod = ctx.mods.video[ctx.lang];
+    var t = {
+      ko: {
+        blocks: [
+          { kind: 'view', title: '관점', lines: [
+            '영상은 첫 5초에서 판단됩니다. 60초를 새로 찍기 전에, 지금 있는 소재로 끝낼 수 있는 한 편을 먼저 봅니다.',
+            '목표는 노출이 아니라 끝까지 본 비율입니다. ' + mod + ' 잡습니다.'
+          ] },
+          { kind: 'plan', title: '제안', lines: [
+            '60초 한 편: 첫 5초에 결론, 15초에 근거, 마지막 10초에 다음 행동. 장면은 세 개를 넘기지 않습니다.',
+            '같은 소재를 유튜브와 숏폼에 다르게 잘라 씁니다. 새로 찍는 건 한 번만 합니다.',
+            '끝까지 본 비율과 다시 본 구간 두 개만 기록합니다. 조회수는 판단 기준으로 쓰지 않습니다.'
+          ] },
+          { kind: 'risk', title: '리스크', lines: [
+            '촬영부터 늘리면 다시 쓸 소재가 남지 않습니다. 편집에서 끝나는 한 편을 먼저 만듭니다.',
+            '썸네일과 제목이 없으면 첫 5초를 고쳐도 아무도 누르지 않습니다.'
+          ] },
+          { kind: 'ask', title: '요청', lines: [
+            ctx.design.name + '에게 썸네일 2안, ' + ctx.cfo.name + '에게 촬영비와 편집비를 나눈 상한을 요청합니다.'
+          ] }
+        ],
+        items: [
+          item(seed + 'v1', ctx.video.name, '오늘', '60초 편집본 1편 완성'),
+          item(seed + 'v2', ctx.video.name, '1일차', '첫 5초 3안·썸네일 2안 제작'),
+          item(seed + 'v3', ctx.video.name, '2일차', '끝까지 본 비율 기록표')
+        ],
+        claims: [
+          { role: 'video', quote: '첫 5초에 결론', problem: '썸네일과 제목이 아직 없습니다. 첫 5초보다 먼저 눌러야 들어옵니다.' }
+        ]
+      },
+      en: {
+        blocks: [
+          { kind: 'view', title: 'View', lines: [
+            'A video is judged in its first five seconds. Before shooting a new one, we finish one cut from the footage we have.',
+            'The goal is completion rate, not reach. ' + mod + '.'
+          ] },
+          { kind: 'plan', title: 'Plan', lines: [
+            'Sixty seconds: the point in five, the evidence at fifteen, the next step in the last ten. Three scenes, no more.',
+            'One shoot, cut twice: a longer edit for YouTube, a short one for feeds.',
+            'Record completion rate and the two replayed moments. Views are not the measure.'
+          ] },
+          { kind: 'risk', title: 'Risk', lines: [
+            'Shooting more leaves no reusable footage. Finish the cut that ends in the edit first.',
+            'With no thumbnail or title, a better first five seconds still gets no click.'
+          ] },
+          { kind: 'ask', title: 'Ask', lines: [
+            'Two thumbnails from ' + ctx.design.name + ', and a split shoot/edit cap from ' + ctx.cfo.name + '.'
+          ] }
+        ],
+        items: [
+          item(seed + 'v1', ctx.video.name, 'today', 'Finish the 60-second cut'),
+          item(seed + 'v2', ctx.video.name, 'day 1', 'Three first-five-second versions, two thumbnails'),
+          item(seed + 'v3', ctx.video.name, 'day 2', 'Completion-rate log')
+        ],
+        claims: [
+          { role: 'video', quote: 'the point in five seconds', problem: 'there is no thumbnail or title yet. The click comes before the first five seconds.' }
+        ]
+      }
+    };
+    return t[ctx.lang];
+  }
+
+  function buildSales(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    var seed = ctx.seed + 71;
+    var mod = ctx.mods.sales[ctx.lang];
+    var t = {
+      ko: {
+        blocks: [
+          { kind: 'view', title: '관점', lines: [
+            '새 리드를 늘리기 전에 이미 문의가 온 건부터 봅니다. 이번에 정할 것은 어느 건을 먼저 밀지입니다.',
+            '이기는 방식도 같이 정합니다. ' + mod + ' 확인합니다.'
+          ] },
+          { kind: 'plan', title: '제안', lines: [
+            '제안서는 한 장입니다: 고객이 물은 것 → 다음 단계 → 금액과 기간. 이 세 칸을 넘으면 읽히지 않습니다.',
+            '할인은 한도 안에서만 씁니다. 한도를 먼저 정하지 않으면 마지막에 단가로 협상합니다.',
+            '판단은 계약 전환 건수(' + a.metric + ')로 합니다. 미팅 수는 성과로 세지 않습니다.'
+          ] },
+          { kind: 'risk', title: '리스크', lines: [
+            '할인으로 이기면 다음 계약도 할인으로 시작합니다. 기준 단가를 먼저 지킵니다.',
+            '후속 연락 담당과 날짜가 없으면 파이프라인은 그 자리에서 멈춥니다.'
+          ] },
+          { kind: 'ask', title: '요청', lines: [
+            ctx.cfo.name + '에게 할인 한도와 결제 조건, ' + ctx.growth.name + '에게 이번 달 문의 출처를 요청합니다.'
+          ] }
+        ],
+        items: [
+          item(seed + 's1', ctx.sales.name, '오늘', '제안서 한 장 템플릿 작성'),
+          item(seed + 's2', ctx.sales.name, '1일차', '반론 3개와 답변 정리'),
+          item(seed + 's3', ctx.sales.name, '2일차', '문의 건별 다음 단계·날짜 지정')
+        ],
+        claims: [
+          { role: 'sales', quote: '제안서 한 장', problem: '누가 언제 후속 연락하는지가 없습니다. 단계만 있고 날짜가 없습니다.' }
+        ]
+      },
+      en: {
+        blocks: [
+          { kind: 'view', title: 'View', lines: [
+            'Before adding leads, I look at the customers who already asked. This meeting decides which deal goes first.',
+            'We also decide how we win. ' + mod + '.'
+          ] },
+          { kind: 'plan', title: 'Plan', lines: [
+            'One page: what the customer asked, the next step, price and term. More than three blocks and it is not read.',
+            'Discount only inside a set limit. Without the limit first, the last conversation is about price.',
+            'Measure deals closed (' + a.metric + '), not meetings held.'
+          ] },
+          { kind: 'risk', title: 'Risk', lines: [
+            'Winning on discount starts the next contract at a discount. Hold the base price first.',
+            'With no owner and date for follow-up, the pipeline stops right there.'
+          ] },
+          { kind: 'ask', title: 'Ask', lines: [
+            'A discount limit and payment terms from ' + ctx.cfo.name + ', and this month’s inquiry sources from ' + ctx.growth.name + '.'
+          ] }
+        ],
+        items: [
+          item(seed + 's1', ctx.sales.name, 'today', 'One-page proposal template'),
+          item(seed + 's2', ctx.sales.name, 'day 1', 'Three objections and the answers'),
+          item(seed + 's3', ctx.sales.name, 'day 2', 'Next step and date for every open deal')
+        ],
+        claims: [
+          { role: 'sales', quote: 'a one-page proposal', problem: 'no follow-up owner or date is named. The stage exists, the date does not.' }
         ]
       }
     };
@@ -802,9 +1006,31 @@
     var seed = ctx.seed + 97;
     var pmClaim = (prior.pm.claims && prior.pm.claims[0]) || { quote: '', problem: '' };
     var dClaim = (prior.dev && prior.dev.claims && prior.dev.claims[0]) || { quote: '', problem: '' };
+    var dzClaim = (prior.design && prior.design.claims && prior.design.claims[0]) || { quote: '', problem: '' };
+    var vClaim = (prior.video && prior.video.claims && prior.video.claims[0]) || { quote: '', problem: '' };
     var gClaim = (prior.growth.claims && prior.growth.claims[0]) || { quote: '', problem: '' };
+    var sClaim = (prior.sales && prior.sales.claims && prior.sales.claims[0]) || { quote: '', problem: '' };
     var cClaim = (prior.cfo.claims && prior.cfo.claims[0]) || { quote: '', problem: '' };
     var verified = be.visitors === cClaim.value;
+    var auditKoLines = [];
+    var auditEnLines = [];
+    [
+      [ctx.pm.name, pmClaim], [ctx.dev.name, dClaim], [ctx.design.name, dzClaim],
+      [ctx.video.name, vClaim], [ctx.growth.name, gClaim], [ctx.sales.name, sClaim],
+      [ctx.cfo.name, cClaim]
+    ].forEach(function (pair) {
+      var name = pair[0];
+      var c = pair[1] || {};
+      if (!c.quote) return;
+      if (c.kind === 'math') {
+        auditKoLines.push(name + ': ' + c.quote + ' — 재계산해도 ' + num(be.visitors, 'ko') + '명으로 ' + (verified ? '맞습니다' : '다릅니다') + '. 다만 가정값 표시와 반올림 기준을 적어야 합니다.');
+        auditEnLines.push(name + ': ' + c.quote + ' — my recomputation gives ' + num(be.visitors, 'en') + ' visits, so the math is ' + (verified ? 'correct' : 'off') + '. The assumptions and the rounding rule still need a note.');
+      } else {
+        auditKoLines.push(name + ': “' + c.quote + '” — ' + c.problem);
+        auditEnLines.push(name + ': \u201c' + c.quote + '\u201d — ' + c.problem);
+      }
+    });
+    var auditCount = auditKoLines.length;
     var cond2 = a.flags.risk
       ? (ko ? '개인정보·권한 액션을 담당과 함께 추가' : 'an owner for the data and access actions')
       : (ko ? '중단 기준을 회의록에 남기기' : 'a stop rule written into the minutes');
@@ -813,17 +1039,10 @@
       ko: {
         blocks: [
           { kind: 'view', title: '관점', lines: [
-            '앞선 네 답변을 숫자, 출처, 책임 기준으로 다시 봤습니다. 결론은 조건부 승인입니다.',
+            '앞선 ' + auditCount + '개 답변을 숫자, 출처, 책임 기준으로 다시 봤습니다. 결론은 조건부 승인입니다.',
             '바로 진행하면 두 군데에서 다시 돌아옵니다. 그 두 개만 먼저 채우면 됩니다.'
           ] },
-          { kind: 'audit', title: '검수 지적', lines: [
-            ctx.pm.name + ': "' + pmClaim.quote + '" — ' + pmClaim.problem,
-            ctx.dev.name + ': "' + dClaim.quote + '" — ' + dClaim.problem,
-            ctx.growth.name + ': "' + gClaim.quote + '" — ' + gClaim.problem,
-            ctx.cfo.name + ': ' + (cClaim.kind === 'math'
-              ? cClaim.quote + ' — 재계산해도 ' + num(be.visitors, 'ko') + '명으로 ' + (verified ? '맞습니다' : '다릅니다') + '. 다만 가정값 표시와 반올림 기준을 적어야 합니다.'
-              : '"' + cClaim.quote + '" — ' + cClaim.problem)
-          ] },
+          { kind: 'audit', title: '검수 지적', lines: auditKoLines },
           { kind: 'risk', title: '리스크', lines: [
             '액션의 담당이 전부 역할 이름입니다. 사람 이름으로 바꾸지 않으면 아무도 시작하지 않습니다.',
             a.flags.risk
@@ -847,17 +1066,10 @@
       en: {
         blocks: [
           { kind: 'view', title: 'View', lines: [
-            'I re-read the four answers against numbers, sources and owners. The verdict is a conditional yes.',
+            'I re-read the ' + auditCount + ' answers above against numbers, sources and owners. The verdict is a conditional yes.',
             'Ship it as written and it comes back twice. Fix two things first and it holds.'
           ] },
-          { kind: 'audit', title: 'Audit', lines: [
-            ctx.pm.name + ': \u201c' + pmClaim.quote + '\u201d — ' + pmClaim.problem,
-            ctx.dev.name + ': \u201c' + dClaim.quote + '\u201d — ' + dClaim.problem,
-            ctx.growth.name + ': \u201c' + gClaim.quote + '\u201d — ' + gClaim.problem,
-            ctx.cfo.name + ': ' + (cClaim.kind === 'math'
-              ? cClaim.quote + ' — my recomputation gives ' + num(be.visitors, 'en') + ' visits, so the math is ' + (verified ? 'correct' : 'off') + '. The assumptions and the rounding rule still need a note.'
-              : '\u201c' + cClaim.quote + '\u201d — ' + cClaim.problem)
-          ] },
+          { kind: 'audit', title: 'Audit', lines: auditEnLines },
           { kind: 'risk', title: 'Risk', lines: [
             'Every action is owned by a role, not a person. Without a name nobody starts.',
             a.flags.risk
@@ -955,15 +1167,19 @@
     }
     var pm = roleOf('pm', 0);
     var dev = roleOf('dev', 1);
-    var growth = roleOf('growth', 2);
-    var cfo = roleOf('cfo', 3);
-    var auditor = roleOf('auditor', 4);
+    var design = roleOf('design', 2);
+    var video = roleOf('video', 3);
+    var growth = roleOf('growth', 4);
+    var sales = roleOf('sales', 5);
+    var cfo = roleOf('cfo', 6);
+    var auditor = roleOf('auditor', 7);
     var ctx = {
       lang: lang,
       room: room,
       mods: roomMods(room, lang, opts && opts.roomName),
       seed: seedBase,
-      pm: pm, dev: dev, growth: growth, cfo: cfo, auditor: auditor,
+      pm: pm, dev: dev, design: design, video: video,
+      growth: growth, sales: sales, cfo: cfo, auditor: auditor,
       agenda: agenda
     };
 
@@ -971,13 +1187,23 @@
     if (round <= 1) {
       parts[pm.id] = buildPm(a, ctx);
       parts[dev.id] = buildDev(a, ctx);
+      parts[design.id] = buildDesign(a, ctx);
+      parts[video.id] = buildVideo(a, ctx);
       parts[growth.id] = buildGrowth(a, ctx, be);
+      parts[sales.id] = buildSales(a, ctx);
       parts[cfo.id] = buildCfo(a, ctx, be);
-      parts[auditor.id] = buildAuditor(a, ctx, be, { pm: parts[pm.id], dev: parts[dev.id], growth: parts[growth.id], cfo: parts[cfo.id] });
+      parts[auditor.id] = buildAuditor(a, ctx, be, {
+        pm: parts[pm.id], dev: parts[dev.id], design: parts[design.id],
+        video: parts[video.id], growth: parts[growth.id], sales: parts[sales.id],
+        cfo: parts[cfo.id]
+      });
     } else {
       parts[pm.id] = buildSecondPm(a, ctx);
       parts[dev.id] = buildSecondDev(a, ctx);
+      parts[design.id] = buildSecondDesign(a, ctx);
+      parts[video.id] = buildSecondVideo(a, ctx);
       parts[growth.id] = buildSecondGrowth(a, ctx, be);
+      parts[sales.id] = buildSecondSales(a, ctx);
       parts[cfo.id] = buildSecondCfo(a, ctx);
       parts[auditor.id] = buildSecondAuditor(a, ctx, be);
     }
@@ -1013,6 +1239,89 @@
   }
 
   /* ── round two (continue the meeting) ───────────────────────────────── */
+
+  function buildSecondDesign(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    return ko ? {
+      blocks: [
+        { kind: 'view', title: '관점', lines: [
+          '2라운드에서는 새 시안을 만들지 않습니다. 고른 안의 적용 범위만 정합니다.'
+        ] },
+        { kind: 'plan', title: '제안', lines: [
+          '적용 범위는 버튼·차트·빈 화면 세 곳입니다. 나머지는 다음 분기로 넘깁니다.',
+          '적용일은 다음 주 첫 영업일, 확인은 적용 뒤 사용자 5명 재테스트로 합니다.'
+        ] },
+        { kind: 'risk', title: '리스크', lines: ['범위를 넓히면 QA가 같은 화면을 두 번 봅니다.'] }
+      ],
+      items: [item(ctx.seed + 'dr1', ctx.design.name, '오늘', '적용 범위 3곳 확정')],
+      claims: []
+    } : {
+      blocks: [
+        { kind: 'view', title: 'View', lines: ['Round two adds no new direction. We only fix where the chosen one applies.'] },
+        { kind: 'plan', title: 'Plan', lines: [
+          'Three places: buttons, charts, empty states. Everything else moves to next quarter.',
+          'Live on the first business day next week, re-tested with the same five users.'
+        ] },
+        { kind: 'risk', title: 'Risk', lines: ['A wider scope means QA reads the same screen twice.'] }
+      ],
+      items: [item(ctx.seed + 'dr1', ctx.design.name, 'today', 'Fix the three places it applies')],
+      claims: []
+    };
+  }
+
+  function buildSecondVideo(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    return ko ? {
+      blocks: [
+        { kind: 'view', title: '관점', lines: ['2라운드에서는 새로 찍지 않습니다. 편집본과 업로드 날짜만 확정합니다.'] },
+        { kind: 'plan', title: '제안', lines: [
+          '첫 5초는 결론형 한 안으로 고정하고, 썸네일은 두 안 중 하나로 확정합니다.',
+          '업로드는 다음 주 화요일, 같은 소재로 숏폼 재편집은 그 다음 날입니다.'
+        ] },
+        { kind: 'risk', title: '리스크', lines: ['업로드 날짜가 없으면 편집본은 다시 열립니다.'] }
+      ],
+      items: [item(ctx.seed + 'vr1', ctx.video.name, '오늘', '첫 5초·썸네일 최종 확정')],
+      claims: []
+    } : {
+      blocks: [
+        { kind: 'view', title: 'View', lines: ['No new shoot in round two. We lock the cut and the upload date.'] },
+        { kind: 'plan', title: 'Plan', lines: [
+          'One first-five-seconds version, one of the two thumbnails.',
+          'Upload next Tuesday; the short re-cut follows the day after.'
+        ] },
+        { kind: 'risk', title: 'Risk', lines: ['Without a date the cut gets reopened.'] }
+      ],
+      items: [item(ctx.seed + 'vr1', ctx.video.name, 'today', 'Lock the first five seconds and thumbnail')],
+      claims: []
+    };
+  }
+
+  function buildSecondSales(a, ctx) {
+    var ko = ctx.lang === 'ko';
+    return ko ? {
+      blocks: [
+        { kind: 'view', title: '관점', lines: ['2라운드에서는 새 제안서를 쓰지 않습니다. 보낼 순서와 날짜만 정합니다.'] },
+        { kind: 'plan', title: '제안', lines: [
+          '문의가 온 건에 날짜를 박습니다. 이번 주 2건, 다음 주 1건으로 나눕니다.',
+          '할인 한도는 1라운드 값 그대로 두고, 예외는 대표 승인으로 넘깁니다.'
+        ] },
+        { kind: 'risk', title: '리스크', lines: ['날짜 없이 순서만 정하면 다음 주에 그대로 밀립니다.'] }
+      ],
+      items: [item(ctx.seed + 'sr1', ctx.sales.name, '오늘', '문의 건별 발송 날짜 지정')],
+      claims: []
+    } : {
+      blocks: [
+        { kind: 'view', title: 'View', lines: ['No new proposal in round two. We set the order and the dates.'] },
+        { kind: 'plan', title: 'Plan', lines: [
+          'Date every open inquiry: two this week, one next week.',
+          'The discount limit stays as round one; exceptions go to the owner for approval.'
+        ] },
+        { kind: 'risk', title: 'Risk', lines: ['An order without dates slips by next week.'] }
+      ],
+      items: [item(ctx.seed + 'sr1', ctx.sales.name, 'today', 'Set a send date per inquiry')],
+      claims: []
+    };
+  }
 
   function buildSecondPm(a, ctx) {
     var ko = ctx.lang === 'ko';
@@ -1362,6 +1671,51 @@
         ];
         items = [item(seed + 'r1', role.name, ko ? '1일차' : 'day 1', ko ? '수정 문구 2안 작성' : 'Write two revised headlines')];
       }
+    } else if (role.kind === 'design') {
+      blocks = ko ? [
+        { kind: 'view', title: '반영', lines: [
+          '"' + quote + '" 반영해서 화면 기준을 고칩니다.',
+          '시안 비교는 같은 과업으로 유지합니다. 기준이 바뀌면 비교표에 먼저 적고 다시 봅니다.'
+        ] },
+        { kind: 'plan', title: '다음 행동', lines: ['한 화면부터 적용하고, 사용자 5명에게 같은 과업을 다시 시킵니다.'] }
+      ] : [
+        { kind: 'view', title: 'Update', lines: [
+          'I will change the screen criteria for \u201c' + quote + '\u201d.',
+          'The comparison stays on the same task. A changed criterion goes on the sheet before we look again.'
+        ] },
+        { kind: 'plan', title: 'Next', lines: ['Apply it to one screen, then run the same task with five users.'] }
+      ];
+      items = [item(seed + 'r1', role.name, ko ? '오늘' : 'today', ko ? '화면 기준표 수정' : 'Update the screen criteria')];
+    } else if (role.kind === 'video') {
+      blocks = ko ? [
+        { kind: 'view', title: '반영', lines: [
+          '"' + quote + '" 반영해서 편집본을 다시 자릅니다.',
+          '길이는 60초를 넘기지 않고, 첫 5초는 같은 결론으로 유지합니다.'
+        ] },
+        { kind: 'plan', title: '다음 행동', lines: ['수정한 컷과 썸네일을 같이 다시 보고, 업로드 날짜는 그대로 둡니다.'] }
+      ] : [
+        { kind: 'view', title: 'Update', lines: [
+          'I will recut for \u201c' + quote + '\u201d.',
+          'It stays under sixty seconds, and the first five seconds keep the same point.'
+        ] },
+        { kind: 'plan', title: 'Next', lines: ['Review the new cut with the thumbnail; the upload date does not move.'] }
+      ];
+      items = [item(seed + 'r1', role.name, ko ? '1일차' : 'day 1', ko ? '수정 컷·썸네일 재확인' : 'Review the new cut and thumbnail')];
+    } else if (role.kind === 'sales') {
+      blocks = ko ? [
+        { kind: 'view', title: '반영', lines: [
+          '"' + quote + '" 반영해서 제안 문장과 다음 단계를 고칩니다.',
+          '단가와 할인 한도는 그대로 둡니다. 바꿔야 하면 다음 승인으로 넘깁니다.'
+        ] },
+        { kind: 'plan', title: '다음 행동', lines: ['해당 건의 제안서를 다시 쓰고, 발송 날짜를 오늘 안에 박습니다.'] }
+      ] : [
+        { kind: 'view', title: 'Update', lines: [
+          'I will change the proposal line and the next step for \u201c' + quote + '\u201d.',
+          'Price and the discount limit stay; a change there goes to the next approval.'
+        ] },
+        { kind: 'plan', title: 'Next', lines: ['Rewrite that proposal and put a send date on it today.'] }
+      ];
+      items = [item(seed + 'r1', role.name, ko ? '오늘' : 'today', ko ? '제안서 재작성·발송일 확정' : 'Rewrite the proposal and set the send date')];
     } else {
       blocks = ko ? [
         { kind: 'view', title: '반영', lines: [
@@ -1659,6 +2013,268 @@
     return { blocks: blocks, items: items };
   }
 
+  /* ── project outputs ─────────────────────────────────────────────────── */
+  /* Every department leaves one concrete deliverable, and the round closes
+     with one integrated approval summary. Built from the same messages and
+     actions the room already holds, so the free engine and Pro replies both
+     produce outputs without a second model call. Pure: no DOM, no clock. */
+
+  var OUTPUT_TITLES = {
+    pm: { ko: '기획 요약서', en: 'Plan brief' },
+    dev: { ko: '개발 아키텍처·체크', en: 'Architecture and checks' },
+    design: { ko: '디자인 비주얼 가이드', en: 'Visual guide' },
+    video: { ko: '영상 숏폼 콘티', en: 'Short-form storyboard' },
+    growth: { ko: '마케팅 카피', en: 'Marketing copy' },
+    sales: { ko: '영업 제안 문구', en: 'Sales proposal lines' },
+    cfo: { ko: '재무·리스크 표', en: 'Finance and risk table' },
+    auditor: { ko: '최종 결재 요약본', en: 'Approval summary' }
+  };
+
+  function clipLine(text, max) {
+    var s = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    return s.length > max ? s.slice(0, max) + '…' : s;
+  }
+
+  function blockLines(msg, kinds) {
+    var out = [];
+    ((msg && msg.blocks) || []).forEach(function (b) {
+      if (kinds.indexOf(b.kind) < 0) return;
+      (b.lines || []).forEach(function (l) { out.push(l); });
+    });
+    return out;
+  }
+
+  function outputLines(kind, msg, own, a, be, lang) {
+    var ko = lang !== 'en';
+    var plan = blockLines(msg, ['plan']);
+    var risk = blockLines(msg, ['risk']);
+    var verdict = blockLines(msg, ['verdict']);
+    var mine = own.map(function (it) { return it.text + (it.due ? ' · ' + it.due : ''); });
+    var actionLine = mine.length ? mine.slice(0, 4).join(' / ') : (ko ? '액션 없음' : 'no actions');
+    var out = [];
+    if (kind === 'pm') {
+      out = ko ? [
+        '결정할 것: ' + a.decision,
+        '범위: ' + a.noun + ' · ' + periodText(a.periodWeeks, 'ko'),
+        '성공 지표: ' + a.metric,
+        '요약: ' + clipLine(plan[0] || (msg.blocks && msg.blocks[0] && msg.blocks[0].lines[0]) || '', 120),
+        '담당 액션: ' + actionLine
+      ] : [
+        'Decision: ' + a.decision,
+        'Scope: ' + a.noun + ' · ' + periodText(a.periodWeeks, 'en'),
+        'One success metric: ' + a.metric,
+        'Summary: ' + clipLine(plan[0] || '', 120),
+        'Owned actions: ' + actionLine
+      ];
+    } else if (kind === 'dev') {
+      out = ko ? [
+        '인터페이스 계약: ' + clipLine(plan[0] || '', 120),
+        '테스트·롤백: ' + clipLine(risk[0] || plan[1] || '', 120),
+        '배포 전 체크: ' + actionLine
+      ] : [
+        'Interface contract: ' + clipLine(plan[0] || '', 120),
+        'Tests and rollback: ' + clipLine(risk[0] || plan[1] || '', 120),
+        'Pre-deploy checks: ' + actionLine
+      ];
+    } else if (kind === 'design') {
+      out = ko ? [
+        '화면 순서: ' + clipLine(plan[0] || '', 120),
+        '기준: ' + clipLine(plan[2] || plan[1] || '', 120),
+        '검증: ' + actionLine,
+        '색·타이포: 기존 브랜드 값 유지'
+      ] : [
+        'Reading order: ' + clipLine(plan[0] || '', 120),
+        'Criteria: ' + clipLine(plan[2] || plan[1] || '', 120),
+        'Check: ' + actionLine,
+        'Color and type: keep the existing brand values'
+      ];
+    } else if (kind === 'video') {
+      out = ko ? [
+        '0–5초: ' + a.hook,
+        '본편: ' + clipLine(plan[0] || '', 120),
+        '컷과 배포: ' + clipLine(plan[1] || '', 120),
+        '확인 지표: 끝까지 본 비율 · ' + actionLine
+      ] : [
+        '0–5s: ' + a.hook,
+        'Main cut: ' + clipLine(plan[0] || '', 120),
+        'Cut and release: ' + clipLine(plan[1] || '', 120),
+        'Measure: completion rate · ' + actionLine
+      ];
+    } else if (kind === 'growth') {
+      out = ko ? [
+        '헤드라인: ' + a.hook,
+        '채널: ' + a.channel,
+        '예산: ' + money(a.budget, 'ko', a.currency) + ' · 필요 방문 ' + num(be.visitors, 'ko') + '명',
+        '측정: ' + a.metric + ' · ' + actionLine
+      ] : [
+        'Headline: ' + a.hook,
+        'Channel: ' + a.channel,
+        'Budget: ' + money(a.budget, 'en', a.currency) + ' · needs ' + num(be.visitors, 'en') + ' visits',
+        'Measure: ' + a.metric + ' · ' + actionLine
+      ];
+    } else if (kind === 'sales') {
+      out = ko ? [
+        '고객이 물은 것: ' + a.noun,
+        '제안 한 문장: ' + clipLine(plan[0] || '', 120),
+        '다음 단계: ' + actionLine,
+        '단가와 할인: ' + money(a.price, 'ko', a.currency) + ' 기준, 한도 안에서만'
+      ] : [
+        'What the customer asked: ' + a.noun,
+        'One proposal line: ' + clipLine(plan[0] || '', 120),
+        'Next step: ' + actionLine,
+        'Price and discount: base ' + money(a.price, 'en', a.currency) + ', inside a set limit only'
+      ];
+    } else if (kind === 'cfo') {
+      var assumed = a.assumed.length ? a.assumed.join(', ') : (ko ? '없음' : 'none');
+      out = ko ? [
+        '항목 | 값',
+        '예산 상한 | ' + money(a.budget, 'ko', a.currency),
+        '회수 필요 방문 | ' + num(be.visitors, 'ko') + '명',
+        '가정값 | ' + assumed,
+        '리스크 | ' + a.risk + ' · ' + actionLine
+      ] : [
+        'Item | Value',
+        'Budget cap | ' + money(a.budget, 'en', a.currency),
+        'Visits needed to pay back | ' + num(be.visitors, 'en'),
+        'Assumed values | ' + assumed,
+        'Risk | ' + a.risk + ' · ' + actionLine
+      ];
+    } else if (kind === 'auditor') {
+      out = ko ? [
+        '판정: ' + (verdict[0] || '조건부 승인'),
+        '조건: ' + clipLine(verdict[1] || '', 120),
+        '검수: 앞선 7개 답변의 숫자·출처·책임',
+        '다음 확인: ' + actionLine
+      ] : [
+        'Verdict: ' + (verdict[0] || 'conditional yes'),
+        'Conditions: ' + clipLine(verdict[1] || '', 120),
+        'Audit: numbers, sources and owners across the 7 answers above',
+        'Next check: ' + actionLine
+      ];
+    }
+    return out.filter(function (l) { return String(l).trim().length > 0; });
+  }
+
+  function buildOutputs(opts) {
+    var o = opts || {};
+    var lang = o.lang === 'en' ? 'en' : 'ko';
+    var roles = o.roles || [];
+    var items = o.items || [];
+    var messages = (o.messages || []).filter(function (m) { return m && m.roleId !== 'user' && !m.replyTo; });
+    var a = analyze(o.agenda || '', lang);
+    if (a.empty) a = analyze(lang === 'en' ? 'We need to decide what to do this week.' : '이번 주에 무엇을 할지 정해야 합니다.', lang);
+    var be = breakEven(a);
+    var round = messages.reduce(function (n, m) { return Math.max(n, m.round || 1); }, 0) || 1;
+    var at = o.createdAt || 0;
+    var outputs = [];
+    var present = [];
+
+    roles.forEach(function (role) {
+      var mine = messages.filter(function (m) { return m.kind === role.kind && (m.round || 1) === round; });
+      var msg = mine.slice(-1)[0];
+      if (!msg) return;
+      /* Owners were written in the language the action was created in, so a
+         deliverable opened in the other language still finds its actions. */
+      var arche = Data.ROLE_ARCHETYPES.filter(function (x) { return x.kind === role.kind; })[0];
+      var ownerNames = [role.name];
+      if (arche) ownerNames.push(arche.name.ko, arche.name.en);
+      var own = items.filter(function (it) { return ownerNames.indexOf(it.owner) >= 0; });
+      var titleMap = OUTPUT_TITLES[role.kind];
+      var lines = outputLines(role.kind, msg, own, a, be, lang);
+      if (!lines.length) return;
+      present.push(role);
+      outputs.push({
+        id: uid('out', (o.projectId || '') + '|' + role.id + '|' + round),
+        roleId: role.id,
+        kind: role.kind,
+        name: role.name,
+        tag: role.tag || '',
+        title: titleMap ? titleMap[lang] : (lang === 'en' ? 'Deliverable' : '산출물'),
+        lines: lines,
+        at: at
+      });
+    });
+
+    var done = items.filter(function (it) { return it && it.done; }).length;
+    var auditor = messages.filter(function (m) { return m.kind === 'auditor'; }).slice(-1)[0];
+    var verdict = blockLines(auditor, ['verdict']);
+    var names = present.map(function (r) { return r.name; }).join(' · ');
+    var finalLines = lang === 'en'
+      ? [
+        'Agenda: ' + clipLine(a.raw, 160),
+        'Decision: ' + a.decision,
+        'Departments: ' + present.length + ' · ' + names,
+        'Actions: ' + items.length + ' · done ' + done,
+        'Conditions: ' + clipLine(verdict[0] || (a.flags.risk ? 'data and access owners must be named' : 'write a stop rule into the minutes'), 140),
+        'Next check: ' + a.metric
+      ]
+      : [
+        '안건: ' + clipLine(a.raw, 160),
+        '결정: ' + a.decision,
+        '참여 부서: ' + present.length + ' · ' + names,
+        '액션: ' + items.length + '건 · 완료 ' + done + '건',
+        '조건: ' + clipLine(verdict[0] || (a.flags.risk ? '개인정보·권한 담당자를 이름으로 지정' : '중단 기준을 회의록에 남기기'), 140),
+        '다음 확인: ' + a.metric
+      ];
+    if (present.length) {
+      outputs.push({
+        id: uid('out', (o.projectId || '') + '|final|' + round),
+        roleId: 'all',
+        kind: 'all',
+        name: lang === 'en' ? 'All departments' : '전 부서',
+        tag: 'FINAL',
+        title: lang === 'en' ? 'Integrated deliverable' : '최종 통합 아웃풋',
+        lines: finalLines,
+        at: at || 0
+      });
+    }
+    return { outputs: outputs, analysis: a, round: round, departments: present.length, done: done, total: items.length };
+  }
+
+  /* Export of one project's deliverables as Markdown, plain text or JSON. */
+  function outputsMinutes(project, lang, format) {
+    var p = project || {};
+    lang = lang === 'en' ? 'en' : 'ko';
+    format = format || 'md';
+    var outs = p.outputs || [];
+    var title = p.title || (lang === 'en' ? 'Untitled project' : '제목 없는 프로젝트');
+    var room = p.roomLabel || roomName(p.room || p.roomId, lang);
+    var when = p.updatedAt ? new Date(p.updatedAt).toISOString().slice(0, 16).replace('T', ' ') : '';
+    var done = (p.items || []).filter(function (i) { return i.done; }).length;
+    var total = (p.items || []).length;
+
+    if (format === 'json') {
+      return {
+        app: 'OneTap AI Team Room',
+        version: VERSION,
+        kind: 'project-outputs',
+        project: {
+          id: p.id || '', title: title, room: p.room || p.roomId || '',
+          agenda: p.agenda || '', status: p.status || 'active',
+          createdAt: p.createdAt || 0, updatedAt: p.updatedAt || 0,
+          actions: { done: done, total: total },
+          departments: (outs || []).filter(function (o) { return o.kind !== 'all'; }).map(function (o) { return { kind: o.kind, name: o.name, title: o.title }; })
+        },
+        outputs: outs.map(function (o) { return { kind: o.kind, roleId: o.roleId, name: o.name, title: o.title, lines: o.lines || [] }; }),
+        exportedAt: when
+      };
+    }
+
+    var lines = [];
+    lines.push((lang === 'en' ? 'PROJECT OUTPUTS · ' : '프로젝트 아웃풋 · ') + title);
+    lines.push((lang === 'en' ? 'Room: ' : '부서: ') + room + (when ? '  ·  ' + when : ''));
+    lines.push((lang === 'en' ? 'Actions: ' : '액션: ') + done + '/' + total + (lang === 'en' ? ' done' : ' 완료'));
+    lines.push('');
+    outs.forEach(function (o) {
+      lines.push((format === 'md' ? '## ' : '[') + o.title + (format === 'md' ? '' : ']') + '  ·  ' + o.name);
+      (o.lines || []).forEach(function (l) { lines.push((format === 'md' ? '- ' : '  ') + l); });
+      lines.push('');
+    });
+    if (!outs.length) lines.push(lang === 'en' ? 'No outputs yet. Run a meeting in this project.' : '아직 아웃풋이 없습니다. 이 프로젝트에서 회의를 실행하세요.');
+    lines.push(lang === 'en' ? 'Made with OneTap AI Team Room.' : '원탭 AI 팀 회의실에서 만들었습니다.');
+    return lines.join('\n');
+  }
+
   /* ── live control room ───────────────────────────────────────────────── */
   /* One pure snapshot of what the HQ panel shows: which seat is on air, who
      has reported in the current round, which department monitor lights up,
@@ -1745,6 +2361,9 @@
     summarize: summarize,
     proPrompts: proPrompts,
     parsePro: parsePro,
+    buildOutputs: buildOutputs,
+    outputsMinutes: outputsMinutes,
+    OUTPUT_TITLES: OUTPUT_TITLES,
     defaultRoles: defaultRoles,
     roleName: roleName,
     roomName: roomName,

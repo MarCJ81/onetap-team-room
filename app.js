@@ -15,7 +15,7 @@
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
-  var FOCUS_KEY = { pm: 'team.focusPm', dev: 'team.focusDev', growth: 'team.focusGrowth', cfo: 'team.focusCfo', auditor: 'team.focusAuditor' };
+  var FOCUS_KEY = { pm: 'team.focusPm', dev: 'team.focusDev', design: 'team.focusDesign', video: 'team.focusVideo', growth: 'team.focusGrowth', sales: 'team.focusSales', cfo: 'team.focusCfo', auditor: 'team.focusAuditor' };
   var PROVIDERS = {
     openai: { model: 'gpt-4o-mini', endpoint: 'https://api.openai.com/v1/chat/completions' },
     gemini: { model: 'gemini-2.5-flash', endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/' },
@@ -30,6 +30,10 @@
     roles: [],
     customRooms: [],
     rooms: {},
+    projects: [],
+    activeProject: {},
+    openProjectId: null,
+    projectFilter: 'all',
     generating: false,
     thinking: null,
     speakingId: null,
@@ -51,7 +55,7 @@
   }
 
   function emptyRoom() {
-    return { agenda: '', startedAgenda: '', messages: [], items: [] };
+    return { agenda: '', startedAgenda: '', messages: [], items: [], outputs: [] };
   }
 
   function defaultRoles() {
@@ -62,6 +66,8 @@
         tag: a.tag,
         glyph: a.glyph,
         accent: a.accent,
+        model: a.model,
+        appointed: !!a.appointed,
         name: { ko: a.name.ko, en: a.name.en },
         custom: false
       };
@@ -79,6 +85,8 @@
         tag: r.tag || fallback.tag,
         glyph: r.glyph || fallback.glyph,
         accent: r.accent || fallback.accent,
+        model: r.model || fallback.model,
+        appointed: r.appointed != null ? !!r.appointed : !!fallback.appointed,
         name: {
           ko: (r.name && r.name.ko) || fallback.name.ko,
           en: (r.name && r.name.en) || fallback.name.en
@@ -86,12 +94,13 @@
         custom: !!r.custom
       };
     });
-    /* A record saved by the four-role version has no Tech Lead. Base roles
-       cannot be removed in the UI, so restore any that are missing. */
+    /* A record saved by an earlier version (4, then 5 roles) restores every
+       base seat it is missing, including the three appointed in this build. */
     Data.ROLE_ARCHETYPES.forEach(function (a, idx) {
       if (mapped.some(function (r) { return r.kind === a.kind; })) return;
       mapped.splice(Math.min(idx, mapped.length), 0, {
         id: a.kind, kind: a.kind, tag: a.tag, glyph: a.glyph, accent: a.accent,
+        model: a.model, appointed: !!a.appointed,
         name: { ko: a.name.ko, en: a.name.en }, custom: false
       });
     });
@@ -125,6 +134,8 @@
     var raw = null;
     try { raw = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { raw = null; }
     state.customRooms = [];
+    state.projects = [];
+    state.activeProject = {};
     if (raw && typeof raw === 'object') {
       if (raw.lang === 'en' || raw.lang === 'ko') state.lang = raw.lang;
       if (raw.mode === 'pro') state.mode = 'pro';
@@ -142,25 +153,124 @@
         room.startedAgenda = typeof src.startedAgenda === 'string' ? src.startedAgenda : '';
         room.messages = Array.isArray(src.messages) ? src.messages : [];
         room.items = Array.isArray(src.items) ? src.items : [];
+        room.outputs = Array.isArray(src.outputs) ? src.outputs : [];
       }
       state.rooms[r.id] = room;
     });
+
+    /* Projects are the history. A record from before this build has only a
+       room copy, so every room with a meeting becomes one project once. */
+    if (raw && Array.isArray(raw.projects)) {
+      state.projects = raw.projects.filter(function (p) {
+        return p && typeof p === 'object' && p.id && state.rooms[p.room];
+      }).map(normalizeProject);
+      state.activeProject = (raw.activeProject && typeof raw.activeProject === 'object') ? raw.activeProject : {};
+      Object.keys(state.activeProject).forEach(function (rid) {
+        if (!state.rooms[rid] || !projectById(state.activeProject[rid])) delete state.activeProject[rid];
+      });
+    } else if (raw) {
+      allRooms().forEach(function (r) {
+        var room = state.rooms[r.id];
+        if (!room || !room.messages.length) return;
+        var first = room.messages.filter(function (m) { return m.ts; })[0];
+        var prj = {
+          id: 'prj_' + r.id + '_' + (first ? first.ts : Date.now()).toString(36),
+          room: r.id,
+          roomLabel: r.name[state.lang] || r.name.ko,
+          agenda: room.startedAgenda || room.agenda || '',
+          startedAgenda: room.startedAgenda || room.agenda || '',
+          messages: room.messages,
+          items: room.items,
+          outputs: room.outputs || [],
+          createdAt: first ? first.ts : Date.now(),
+          updatedAt: Date.now()
+        };
+        state.projects.push(prj);
+        state.activeProject[r.id] = prj.id;
+      });
+    }
+    state.projects.forEach(function (p) {
+      if (!p.outputs.length && p.messages.length) p.outputs = projectOutputs(p);
+    });
+
     var pro = null;
     try { pro = JSON.parse(localStorage.getItem(PRO_STORE) || 'null'); } catch (e) { pro = null; }
     if (pro && pro.key && PROVIDERS[pro.provider]) state.pro = pro;
     if (state.mode === 'pro' && !state.pro) state.mode = 'free';
+    state.openProjectId = currentProject() ? currentProject().id : (state.projects[0] ? state.projects[0].id : null);
+  }
+
+  function normalizeProject(p) {
+    return {
+      id: String(p.id),
+      room: p.room,
+      roomLabel: typeof p.roomLabel === 'string' ? p.roomLabel : '',
+      agenda: typeof p.agenda === 'string' ? p.agenda : '',
+      startedAgenda: typeof p.startedAgenda === 'string' ? p.startedAgenda : '',
+      messages: Array.isArray(p.messages) ? p.messages : [],
+      items: Array.isArray(p.items) ? p.items : [],
+      outputs: Array.isArray(p.outputs) ? p.outputs : [],
+      createdAt: Number(p.createdAt) || 0,
+      updatedAt: Number(p.updatedAt) || 0
+    };
+  }
+
+  function projectById(id) {
+    return state.projects.filter(function (p) { return p.id === id; })[0] || null;
+  }
+
+  function currentProject() {
+    var id = state.activeProject[state.room];
+    return id ? projectById(id) : null;
+  }
+
+  /* The open room record is the live copy of its project; this writes it back
+     before the room or the project changes, so no project loses its last turn. */
+  function flushRoom() {
+    var p = currentProject();
+    if (!p) return;
+    var r = room();
+    p.agenda = r.agenda || '';
+    p.startedAgenda = r.startedAgenda || '';
+    p.messages = r.messages || [];
+    p.items = r.items || [];
+    p.outputs = r.outputs || [];
+    p.updatedAt = Date.now();
+  }
+
+  function createProject(text) {
+    var now = Date.now();
+    var prj = {
+      id: 'prj_' + now.toString(36) + Math.random().toString(36).slice(2, 6),
+      room: state.room,
+      roomLabel: roomInfo(state.room).name[lang()],
+      agenda: text,
+      startedAgenda: text,
+      messages: [],
+      items: [],
+      outputs: [],
+      createdAt: now,
+      updatedAt: now
+    };
+    state.projects.unshift(prj);
+    state.activeProject[state.room] = prj.id;
+    state.openProjectId = prj.id;
+    return prj;
   }
 
   function save() {
     try {
+      flushRoom();
       var payload = {
-        v: 1,
+        v: 2,
         lang: state.lang,
         mode: state.mode,
         room: state.room,
         roles: state.roles,
         customRooms: state.customRooms,
-        rooms: state.rooms
+        rooms: state.rooms,
+        projects: state.projects,
+        activeProject: state.activeProject
       };
       localStorage.setItem(STORE, JSON.stringify(payload));
     } catch (e) { /* storage full or blocked: the app still works in memory */ }
@@ -208,6 +318,8 @@
         tag: r.custom ? t('team.customTag') : r.tag,
         glyph: r.glyph,
         accent: r.accent,
+        model: r.model,
+        appointed: !!r.appointed,
         name: roleName(r),
         focus: t(FOCUS_KEY[r.kind] || 'team.focusPm'),
         index: i,
@@ -339,9 +451,12 @@
           + '<button type="button" data-role-cancel="' + esc(r.id) + '">' + esc(t('team.cancel')) + '</button>'
           + '</div>';
       } else {
+        var model = roleModel(r);
         body = '<button type="button" class="roster__name" data-role-edit="' + esc(r.id) + '">' + esc(name)
           + ' <span class="roster__tag">' + esc(r.custom ? t('team.customTag') : r.tag) + '</span></button>'
-          + '<span class="roster__focus">' + esc(t(FOCUS_KEY[r.kind] || 'team.focusPm')) + '</span>';
+          + (r.appointed ? '<span class="roster__appointed">' + esc(t('team.appointed')) + '</span>' : '')
+          + '<span class="roster__focus">' + esc(t(FOCUS_KEY[r.kind] || 'team.focusPm')) + '</span>'
+          + (model ? '<span class="roster__model" title="' + esc(t('team.modelTitle', { model: model.label })) + '">' + esc(model.label) + '</span>' : '');
       }
       var remove = r.custom && !editing
         ? '<button type="button" class="roster__remove" data-role-remove="' + esc(r.id) + '" aria-label="' + esc(t('team.remove')) + '">×</button>'
@@ -392,6 +507,8 @@
     var badge = m.mode === 'pro'
       ? '<span class="badge">' + esc(t('thread.proBadge')) + '</span>'
       : '<span class="badge">' + esc(t('thread.freeBadge')) + '</span>';
+    var model = roleModel(resolvedRoles().filter(function (r) { return r.kind === m.kind; })[0]);
+    if (model) badge += '<span class="badge badge--model">' + esc(model.label) + '</span>';
     if (m.kind === 'auditor') badge += '<span class="badge badge--audit">' + esc(t('thread.auditBadge')) + '</span>';
     var replyLine = m.replyTo
       ? '<p class="msg__replyto">↳ ' + esc(t('thread.replyTo', { name: parentName(m.replyTo) })) + '</p>'
@@ -474,6 +591,224 @@
     set('sumItems', s.items);
     set('sumDone', s.done);
     set('sumAudits', s.audits);
+  }
+
+  /* ── projects and team outputs ──────────────────────────────────────── */
+
+  function projectTitle(p) {
+    var text = String((p && (p.agenda || p.startedAgenda)) || '').replace(/\s+/g, ' ').trim();
+    if (!text) return t('project.untitled');
+    var cut = text.split(/[.!?。]\s?/)[0];
+    if (cut.length < 8) cut = text;
+    return cut.length > 46 ? cut.slice(0, 46) + '…' : cut;
+  }
+
+  function projectStats(p) {
+    var items = (p && p.items) || [];
+    var done = items.filter(function (i) { return i && i.done; }).length;
+    var msgs = ((p && p.messages) || []).filter(function (m) { return m && m.roleId !== 'user'; });
+    var teams = [];
+    msgs.forEach(function (m) { if (teams.indexOf(m.kind) < 0) teams.push(m.kind); });
+    var rounds = msgs.reduce(function (n, m) { return Math.max(n, m.round || 1); }, 0);
+    var outs = (p && p.outputs) || [];
+    return {
+      done: done,
+      total: items.length,
+      rate: items.length ? Math.round((done / items.length) * 100) : 0,
+      teams: teams,
+      rounds: rounds,
+      messages: msgs.length,
+      outputs: outs.filter(function (o) { return o.kind !== 'all'; }).length,
+      final: outs.filter(function (o) { return o.kind === 'all'; }).length
+    };
+  }
+
+  function projectStatus(p) {
+    var s = projectStats(p);
+    return (s.total && s.done === s.total && s.messages) ? 'done' : 'active';
+  }
+
+  function projectOutputs(p) {
+    return Core.buildOutputs({
+      agenda: p.startedAgenda || p.agenda || '',
+      room: p.room,
+      lang: lang(),
+      roles: resolvedRoles(),
+      messages: p.messages || [],
+      items: p.items || [],
+      projectId: p.id,
+      createdAt: p.createdAt || 0
+    }).outputs;
+  }
+
+  /* Rebuild the open project's deliverables from the turns that just landed. */
+  function refreshOutputs() {
+    var p = currentProject();
+    if (!p) return;
+    var r = room();
+    p.messages = r.messages || [];
+    p.items = r.items || [];
+    p.agenda = r.agenda || '';
+    p.startedAgenda = r.startedAgenda || '';
+    p.outputs = projectOutputs(p);
+    p.updatedAt = Date.now();
+    r.outputs = p.outputs;
+  }
+
+  function roleModel(role) {
+    if (!role || !role.model) return null;
+    return Data.MODELS[role.model] || null;
+  }
+
+  function outputModel(out) {
+    var role = resolvedRoles().filter(function (r) { return r.id === out.roleId; })[0];
+    var m = roleModel(role);
+    return m ? m.label : '';
+  }
+
+  function openProject(id) {
+    var p = projectById(id);
+    if (!p) return;
+    var target = state.rooms[p.room];
+    if (!target) { toast(t('project.gone')); return; }
+    if (p.id !== state.activeProject[p.room]) {
+      flushRoom();
+      state.room = p.room;
+      state.activeProject[p.room] = p.id;
+      target.agenda = p.agenda || '';
+      target.startedAgenda = p.startedAgenda || '';
+      target.messages = p.messages || [];
+      target.items = p.items || [];
+      target.outputs = p.outputs && p.outputs.length ? p.outputs : (target.messages.length ? projectOutputs(p) : []);
+      p.outputs = target.outputs;
+    } else {
+      state.room = p.room;
+    }
+    state.openProjectId = p.id;
+    save();
+    renderAll();
+  }
+
+  function renderProjects() {
+    var list = $('#projectList');
+    if (!list) return;
+    var all = state.projects.filter(function (p) { return state.rooms[p.room]; });
+    var shown = all.filter(function (p) {
+      return state.projectFilter === 'all' || projectStatus(p) === state.projectFilter;
+    });
+    if (state.openProjectId && !projectById(state.openProjectId)) state.openProjectId = null;
+    if (!state.openProjectId && shown.length) state.openProjectId = shown[0].id;
+    list.innerHTML = shown.length ? shown.map(function (p) {
+      var s = projectStats(p);
+      var st = projectStatus(p);
+      var on = p.id === state.openProjectId;
+      var date = p.createdAt ? new Date(p.createdAt).toLocaleDateString(lang() === 'en' ? 'en-US' : 'ko-KR', { month: '2-digit', day: '2-digit' }) : '';
+      return '<li class="plist__row' + (on ? ' is-on' : '') + '" data-project-row="' + esc(p.id) + '" data-project-status="' + st + '">'
+        + '<button type="button" class="plist__btn" data-project="' + esc(p.id) + '" aria-pressed="' + (on ? 'true' : 'false') + '">'
+        + '<span class="plist__top"><b class="plist__title">' + esc(projectTitle(p)) + '</b>'
+        + '<span class="plist__status is-' + st + '">' + esc(t(st === 'done' ? 'project.statusDone' : 'project.statusActive')) + '</span></span>'
+        + '<span class="plist__meta">' + esc(roomInfo(p.room).name[lang()]) + ' · ' + s.teams.length + esc(t('project.teamUnit'))
+        + ' · ' + s.done + '/' + s.total + (date ? ' · ' + esc(date) : '') + '</span>'
+        + '<span class="plist__bar" aria-hidden="true"><i style="width:' + s.rate + '%"></i></span>'
+        + '</button></li>';
+    }).join('') : '<li class="plist__empty">' + esc(t('project.empty')) + '</li>';
+
+    $$('[data-project-filter]').forEach(function (b) {
+      var on = b.getAttribute('data-project-filter') === state.projectFilter;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    renderProjectDetail();
+  }
+
+  function renderProjectDetail() {
+    var meta = $('#projectMeta');
+    var list = $('#outputList');
+    var tools = $('#outputTools');
+    if (!meta || !list || !tools) return;
+    var p = projectById(state.openProjectId);
+    if (!p || !state.rooms[p.room]) {
+      meta.innerHTML = '<p class="pout__empty">' + esc(t('project.noProject')) + '</p>';
+      list.innerHTML = '';
+      tools.innerHTML = '';
+      return;
+    }
+    var s = projectStats(p);
+    var st = projectStatus(p);
+    var byKind = {};
+    resolvedRoles().forEach(function (r) { byKind[r.kind] = r; });
+    var teamChips = s.teams.map(function (k) {
+      var r = byKind[k];
+      var label = r ? r.name : k;
+      var model = r && roleModel(r) ? roleModel(r).label : '';
+      return '<span class="pmeta__team" style="--role:' + esc(r ? r.accent : '#B45309') + '">' + esc(label)
+        + (model ? '<i>' + esc(model) + '</i>' : '') + '</span>';
+    }).join('');
+    var isCurrent = currentProject() && currentProject().id === p.id;
+    meta.innerHTML = '<div class="pmeta__top"><h3 class="pmeta__title">' + esc(projectTitle(p)) + '</h3>'
+      + '<span class="pmeta__status is-' + st + '">' + esc(t(st === 'done' ? 'project.statusDone' : 'project.statusActive')) + '</span></div>'
+      + '<p class="pmeta__agenda">' + esc(p.startedAgenda || p.agenda || t('project.untitled')) + '</p>'
+      + '<dl class="pmeta__grid">'
+      + '<div><dt>' + esc(t('project.teams')) + '</dt><dd class="pmeta__teams">' + (teamChips || '—') + '</dd></div>'
+      + '<div><dt>' + esc(t('project.progress')) + '</dt><dd><b data-project-rate>' + s.rate + '%</b> · ' + s.done + '/' + s.total + '</dd></div>'
+      + '<div><dt>' + esc(t('project.records')) + '</dt><dd>' + s.messages + ' ' + esc(t('project.speeches')) + ' · ' + s.rounds + ' ' + esc(t('project.rounds')) + '</dd></div>'
+      + '<div><dt>' + esc(t('project.outputs')) + '</dt><dd>' + s.outputs + ' · ' + esc(t('project.finalOne')) + ' ' + s.final + '</dd></div>'
+      + '</dl>'
+      + (isCurrent ? '<span class="pmeta__now">' + esc(t('project.current')) + '</span>'
+        : '<button type="button" class="btn btn--quiet btn--sm" data-open-project="' + esc(p.id) + '">' + esc(t('project.open')) + '</button>');
+
+    var outs = p.outputs || [];
+    tools.innerHTML = outs.length
+      ? '<span class="ptools__label">' + esc(t('project.exportLabel')) + '</span>'
+        + '<button type="button" class="btn btn--quiet btn--sm" data-copy-all="1">' + esc(t('project.copyAll')) + '</button>'
+        + '<button type="button" class="btn btn--quiet btn--sm" data-out-export="md">MD</button>'
+        + '<button type="button" class="btn btn--quiet btn--sm" data-out-export="txt">TXT</button>'
+        + '<button type="button" class="btn btn--quiet btn--sm" data-out-export="json">JSON</button>'
+      : '';
+
+    list.innerHTML = outs.length ? outs.map(function (o) {
+      var model = outputModel(o);
+      var isFinal = o.kind === 'all';
+      return '<li class="out' + (isFinal ? ' out--final' : '') + '" data-output="' + esc(o.id) + '" data-out-kind="' + esc(o.kind) + '">'
+        + '<details' + (isFinal ? ' open' : '') + '>'
+        + '<summary class="out__sum"><span class="out__title">' + esc(o.title) + '</span>'
+        + '<span class="out__who">' + esc(o.name) + (model ? ' · ' + esc(model) : '') + '</span>'
+        + '<span class="out__n">' + ((o.lines || []).length) + '</span></summary>'
+        + '<ul class="out__lines">' + (o.lines || []).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
+        + '<div class="out__foot"><button type="button" class="btn btn--quiet btn--sm" data-copy-output="' + esc(o.id) + '">' + esc(t('project.copyOne')) + '</button></div>'
+        + '</details></li>';
+    }).join('') : '<li class="out__empty">' + esc(t('project.noOutputs')) + '</li>';
+  }
+
+  function outputText(o) {
+    return o.title + ' · ' + o.name + '\n' + (o.lines || []).map(function (l) { return '- ' + l; }).join('\n');
+  }
+
+  function allOutputsText(p) {
+    return (p.outputs || []).map(outputText).join('\n\n');
+  }
+
+  function exportOutputs(fmt) {
+    var p = projectById(state.openProjectId);
+    if (!p || !(p.outputs || []).length) { toast(t('project.noOutputs')); return; }
+    var tmpl = {};
+    tmpl.id = p.id; tmpl.agenda = p.agenda; tmpl.title = projectTitle(p);
+    tmpl.room = p.room; tmpl.roomLabel = roomInfo(p.room).name[lang()];
+    tmpl.items = p.items; tmpl.outputs = p.outputs; tmpl.status = projectStatus(p);
+    tmpl.createdAt = p.createdAt; tmpl.updatedAt = p.updatedAt;
+    var out = Core.outputsMinutes(tmpl, lang(), fmt);
+    var text = fmt === 'json' ? JSON.stringify(out, null, 2) : out;
+    var mime = fmt === 'json' ? 'application/json' : (fmt === 'md' ? 'text/markdown' : 'text/plain');
+    var blob = new Blob([text], { type: mime + ';charset=utf-8' });
+    var date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    var name = 'onetap-project-' + p.room + '-' + date + '.' + fmt;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+    toast(t('export.done', { name: name }));
   }
 
   function renderMode() {
@@ -699,6 +1034,7 @@
     renderSummary();
     renderMode();
     renderLive();
+    renderProjects();
   }
 
   /* ── free run ────────────────────────────────────────────────────────── */
@@ -775,7 +1111,18 @@
       r.startedAgenda = text;
       r.messages = [];
       r.items = [];
+      r.outputs = [];
       round = 1;
+      if (!currentProject()) createProject(text);
+      else {
+        var prj = currentProject();
+        prj.agenda = text;
+        prj.startedAgenda = text;
+        prj.messages = [];
+        prj.items = [];
+        prj.outputs = [];
+        prj.updatedAt = Date.now();
+      }
     }
     return { text: text, round: round || (maxRound() + 1) };
   }
@@ -807,9 +1154,11 @@
         state.speakingId = null;
         state.livePreview = '';
         setGenerating(false);
+        refreshOutputs();
+        save();
         renderThread();
         renderLive();
-        save();
+        renderProjects();
         return;
       }
       var m = result.messages[i];
@@ -838,9 +1187,11 @@
         } else {
           state.speakingId = null;
           setGenerating(false);
+          refreshOutputs();
+          save();
           renderThread();
           renderLive();
-          save();
+          renderProjects();
         }
       }, delay);
     }
@@ -987,9 +1338,9 @@
     }
     if (!plan) return;
     var roles = resolvedRoles().filter(function (r, i, arr) {
-      if (['pm', 'dev', 'growth', 'cfo', 'auditor'].indexOf(r.kind) < 0) return false;
+      if (['pm', 'dev', 'design', 'video', 'growth', 'sales', 'cfo', 'auditor'].indexOf(r.kind) < 0) return false;
       return arr.findIndex(function (x) { return x.kind === r.kind; }) === i;
-    }).slice(0, 5);
+    }).slice(0, 8);
     var token = ++state.token;
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 60000);
@@ -1007,9 +1358,11 @@
         state.thinking = null;
         state.speakingId = null;
         state.livePreview = '';
+        refreshOutputs();
+        save();
         renderThread();
         renderLive();
-        save();
+        renderProjects();
         return;
       }
       var role = roles[index];
@@ -1127,6 +1480,9 @@
         };
         appendMessage(room(), msg);
         appendItems(room(), msg.itemIds, parsed.items);
+        refreshOutputs();
+        save();
+        renderProjects();
       }).catch(function (err) {
         if (token !== state.token) return;
         showError(providerErrorMessage(err));
@@ -1147,7 +1503,9 @@
       out.message.replyTo = userMsg.id;
       appendMessage(room(), out.message);
       appendItems(room(), out.message.itemIds, out.items);
+      refreshOutputs();
       save();
+      renderProjects();
     }, 420);
   }
 
@@ -1291,10 +1649,20 @@
 
   function resetRoom() {
     var r = room();
+    var prj = currentProject();
+    if (prj) {
+      /* The finished record stays in the project list; the room opens blank. */
+      prj.messages = r.messages || [];
+      prj.items = r.items || [];
+      prj.outputs = r.outputs || [];
+      prj.updatedAt = Date.now();
+      delete state.activeProject[state.room];
+    }
     r.agenda = '';
     r.startedAgenda = '';
     r.messages = [];
     r.items = [];
+    r.outputs = [];
     state.replyTo = null;
     state.generating = false;
     state.speakingId = null;
@@ -1348,6 +1716,7 @@
       return;
     }
     var id = 'custom_' + Core.uid('', name + Date.now()).slice(1);
+    flushRoom();
     state.customRooms.push({
       id: id,
       glyph: name.slice(0, 1).toUpperCase(),
@@ -1380,6 +1749,9 @@
     var id = meta.id;
     state.customRooms = state.customRooms.filter(function (r) { return r.id !== id; });
     delete state.rooms[id];
+    delete state.activeProject[id];
+    state.projects = state.projects.filter(function (p) { return p.room !== id; });
+    if (!projectById(state.openProjectId)) state.openProjectId = null;
     state.room = 'general';
     state.replyTo = null;
     state.thinking = null;
@@ -1430,6 +1802,7 @@
         if (!tab) return;
         var id = tab.getAttribute('data-room');
         if (!id || id === state.room) return;
+        flushRoom();
         state.token += 1;
         state.generating = false;
         state.thinking = null;
@@ -1437,6 +1810,8 @@
         state.livePreview = '';
         state.replyTo = null;
         state.room = id;
+        var prj = currentProject();
+        state.openProjectId = prj ? prj.id : (state.projects.filter(function (p) { return p.room === id; })[0] || {}).id || state.openProjectId;
         save();
         setGenerating(false);
         renderAll();
@@ -1753,6 +2128,39 @@
         model.value = PROVIDERS[next].model;
       }
     });
+
+    /* Projects & outputs panel: pick a project, filter it, copy or export its
+       deliverables. Every click reads the stored project, never a guess. */
+    var projectPanel = $('#projectPanel');
+    if (projectPanel) {
+      projectPanel.addEventListener('click', function (e) {
+        var pick = e.target.closest('[data-project]');
+        if (pick) { openProject(pick.getAttribute('data-project')); return; }
+        var filter = e.target.closest('[data-project-filter]');
+        if (filter) {
+          state.projectFilter = filter.getAttribute('data-project-filter');
+          renderProjects();
+          return;
+        }
+        var open = e.target.closest('[data-open-project]');
+        if (open) { openProject(open.getAttribute('data-open-project')); return; }
+        var proj = projectById(state.openProjectId);
+        if (!proj) return;
+        var one = e.target.closest('[data-copy-output]');
+        if (one) {
+          var id = one.getAttribute('data-copy-output');
+          var out = (proj.outputs || []).filter(function (o) { return o.id === id; })[0];
+          if (out) copyText(outputText(out), 'project.copied');
+          return;
+        }
+        if (e.target.closest('[data-copy-all]')) {
+          copyText(allOutputsText(proj), 'project.allCopied');
+          return;
+        }
+        var exp = e.target.closest('[data-out-export]');
+        if (exp) exportOutputs(exp.getAttribute('data-out-export'));
+      });
+    }
 
     $$('[data-close]').forEach(function (el) {
       el.addEventListener('click', function () { closeModal(el.getAttribute('data-close')); });
