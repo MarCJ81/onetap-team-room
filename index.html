@@ -63,6 +63,7 @@
           <circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.11a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.11A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.11A1.6 1.6 0 0 0 15 4.6a1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9v.11a1.6 1.6 0 0 0 1.47.97H21a2 2 0 1 1 0 4h-.11a1.6 1.6 0 0 0-1.49.92z"/>
         </svg>
       </button>
+      <span class="pro-count" id="proCount" hidden aria-hidden="true"></span>
     </div>
   </div>
 </header>
@@ -358,42 +359,95 @@
 <!-- Pro panel -->
 <div class="modal" id="proModal" hidden>
   <div class="modal__backdrop" data-close="pro"></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="proTitle">
+  <div class="modal__panel modal__panel--pro" role="dialog" aria-modal="true" aria-labelledby="proTitle">
     <div class="modal__head">
       <h2 id="proTitle" data-i18n="pro.title">Pro 연결</h2>
       <button type="button" class="icon-btn icon-btn--plain" data-close="pro" aria-label="Close">✕</button>
     </div>
-    <p class="modal__sub" data-i18n="pro.sub">내 키를 씁니다. 호출은 이 브라우저에서 제공자로 바로 가고, 우리 서버를 거치지 않습니다.</p>
+    <p class="modal__sub" data-i18n="pro.sub">세 제공자의 키를 한 화면에서 각각 저장합니다. 키는 이 브라우저에서 해당 제공자로만 전송되고, 우리 서버를 거치지 않습니다.</p>
+    <div class="pro-status" id="proStatus">
+      <span class="pro-status__label" data-i18n="pro.status">상태</span>
+      <span class="pro-status__value" id="proStatusValue">No key yet</span>
+      <span class="pro-status__badge" id="proStatusBadge" hidden>0/3</span>
+    </div>
     <form id="proForm" class="pro-form">
-      <div class="field">
-        <label for="proProvider" data-i18n="pro.provider">제공자</label>
-        <select id="proProvider">
-          <option value="openai">OpenAI</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="claude">Anthropic Claude</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="proModel" data-i18n="pro.model">모델</label>
-        <input type="text" id="proModel" autocomplete="off" spellcheck="false" value="gpt-4o-mini">
-      </div>
-      <div class="field">
-        <label for="proKey" data-i18n="pro.key">API 키</label>
-        <input type="password" id="proKey" autocomplete="off" spellcheck="false" placeholder="sk-…">
-        <p class="hint" data-i18n="pro.keyHint">이 브라우저의 localStorage에만 저장됩니다. 언제든 지울 수 있습니다.</p>
-      </div>
-      <div class="pro-status" id="proStatus">
-        <span class="pro-status__label" data-i18n="pro.status">상태</span>
-        <span class="pro-status__value" id="proStatusValue">No key yet</span>
-      </div>
+      <section class="pro-slot" data-pro-slot="openai" data-pro-provider="openai">
+        <header class="pro-slot__head">
+          <span class="pro-slot__title"><b>OpenAI</b><em>GPT</em></span>
+          <span class="pro-slot__badge" data-pro-badge="openai">Not connected</span>
+        </header>
+        <div class="pro-slot__grid">
+          <div class="field">
+            <label for="proModelOpenai" data-i18n="pro.model">모델</label>
+            <input type="text" id="proModelOpenai" data-pro-model="openai" autocomplete="off" spellcheck="false" value="gpt-4o-mini">
+          </div>
+          <div class="field">
+            <label for="proKeyOpenai" data-i18n="pro.key">API 키</label>
+            <input type="password" id="proKeyOpenai" data-pro-key="openai" autocomplete="off" spellcheck="false" placeholder="sk-…">
+          </div>
+        </div>
+        <p class="pro-slot__saved" data-pro-saved="openai" hidden></p>
+        <div class="pro-slot__actions">
+          <button type="button" class="btn btn--primary btn--sm" data-pro-save="openai" data-i18n="pro.saveOne">저장</button>
+          <button type="button" class="btn btn--quiet btn--sm" data-pro-clear="openai" data-i18n="pro.deleteOne">키 삭제</button>
+          <button type="button" class="link-btn" data-pro-reset-model="openai" data-i18n="pro.resetModel">기본 모델</button>
+        </div>
+      </section>
+
+      <section class="pro-slot" data-pro-slot="gemini" data-pro-provider="gemini">
+        <header class="pro-slot__head">
+          <span class="pro-slot__title"><b>Google Gemini</b><em>Gemini</em></span>
+          <span class="pro-slot__badge" data-pro-badge="gemini">Not connected</span>
+        </header>
+        <div class="pro-slot__grid">
+          <div class="field">
+            <label for="proModelGemini" data-i18n="pro.model">모델</label>
+            <input type="text" id="proModelGemini" data-pro-model="gemini" autocomplete="off" spellcheck="false" value="gemini-2.5-flash">
+          </div>
+          <div class="field">
+            <label for="proKeyGemini" data-i18n="pro.key">API 키</label>
+            <input type="password" id="proKeyGemini" data-pro-key="gemini" autocomplete="off" spellcheck="false" placeholder="AIza…">
+          </div>
+        </div>
+        <p class="pro-slot__saved" data-pro-saved="gemini" hidden></p>
+        <div class="pro-slot__actions">
+          <button type="button" class="btn btn--primary btn--sm" data-pro-save="gemini" data-i18n="pro.saveOne">저장</button>
+          <button type="button" class="btn btn--quiet btn--sm" data-pro-clear="gemini" data-i18n="pro.deleteOne">키 삭제</button>
+          <button type="button" class="link-btn" data-pro-reset-model="gemini" data-i18n="pro.resetModel">기본 모델</button>
+        </div>
+      </section>
+
+      <section class="pro-slot" data-pro-slot="claude" data-pro-provider="claude">
+        <header class="pro-slot__head">
+          <span class="pro-slot__title"><b>Anthropic Claude</b><em>Claude</em></span>
+          <span class="pro-slot__badge" data-pro-badge="claude">Not connected</span>
+        </header>
+        <div class="pro-slot__grid">
+          <div class="field">
+            <label for="proModelClaude" data-i18n="pro.model">모델</label>
+            <input type="text" id="proModelClaude" data-pro-model="claude" autocomplete="off" spellcheck="false" value="claude-sonnet-4-20250514">
+          </div>
+          <div class="field">
+            <label for="proKeyClaude" data-i18n="pro.key">API 키</label>
+            <input type="password" id="proKeyClaude" data-pro-key="claude" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+          </div>
+        </div>
+        <p class="pro-slot__saved" data-pro-saved="claude" hidden></p>
+        <div class="pro-slot__actions">
+          <button type="button" class="btn btn--primary btn--sm" data-pro-save="claude" data-i18n="pro.saveOne">저장</button>
+          <button type="button" class="btn btn--quiet btn--sm" data-pro-clear="claude" data-i18n="pro.deleteOne">키 삭제</button>
+          <button type="button" class="link-btn" data-pro-reset-model="claude" data-i18n="pro.resetModel">기본 모델</button>
+        </div>
+      </section>
+
       <p class="form-error" id="proError" role="alert" hidden></p>
-      <div class="modal__actions">
-        <button type="submit" class="btn btn--primary" data-i18n="pro.save">저장하고 Pro 사용</button>
-        <button type="button" class="btn btn--quiet" id="proDelete" data-i18n="pro.delete">키 삭제</button>
+      <div class="pro-foot">
+        <p class="hint" data-i18n="pro.keyHint">키는 이 브라우저의 localStorage에만 저장됩니다. 제공자별로 언제든 지울 수 있습니다.</p>
+        <button type="button" class="btn btn--quiet btn--sm" id="proDeleteAll" data-i18n="pro.deleteAll">저장된 키 모두 삭제</button>
       </div>
     </form>
     <p class="modal__note" data-i18n="pro.localNote">OpenAI와 Claude는 브라우저 직접 호출을 막는 경우가 있습니다. 그때는 Gemini나 자체 프록시가 확실합니다.</p>
-    <p class="modal__note" data-i18n="pro.keyNote">키는 선택한 제공자에게만 전송됩니다. 이 페이지에는 백엔드가 없습니다.</p>
+    <p class="modal__note" data-i18n="pro.keyNote">각 키는 그 제공자에게만 전송됩니다. 이 페이지에는 백엔드가 없습니다.</p>
   </div>
 </div>
 

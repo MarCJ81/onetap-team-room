@@ -92,13 +92,23 @@
     }
   ];
 
-  /* The model each role is appointed to in Pro mode. One provider key is still
-     enough to run a round: when the connected provider differs, the round uses
-     the connected provider’s model and the roster says so. */
+  /* The three Pro providers, in the order the connection panel lists them.
+     A key for each is optional: a seat whose provider has no key falls back to
+     a provider that does, and the message card says which one answered. */
+  var PROVIDERS = {
+    openai: { id: 'openai', label: 'OpenAI', mark: 'GPT', keyHint: 'sk-…', model: 'gpt-4o-mini' },
+    gemini: { id: 'gemini', label: 'Google Gemini', mark: 'Gemini', keyHint: 'AIza…', model: 'gemini-2.5-flash' },
+    claude: { id: 'claude', label: 'Anthropic Claude', mark: 'Claude', keyHint: 'sk-ant-…', model: 'claude-sonnet-4-20250514' }
+  };
+  var PROVIDER_ORDER = ['openai', 'gemini', 'claude'];
+
+  /* The model each role is appointed to in Pro mode. One key is still enough to
+     run a round: a seat whose provider has no key answers from a connected one
+     and the card marks the fallback. */
   var MODELS = {
-    gpt: { id: 'gpt', label: 'GPT', provider: 'openai', model: 'gpt-4o-mini' },
-    gemini: { id: 'gemini', label: 'Gemini', provider: 'gemini', model: 'gemini-2.5-flash' },
-    claude: { id: 'claude', label: 'Claude', provider: 'claude', model: 'claude-sonnet-4-20250514' }
+    gpt: { id: 'gpt', label: 'GPT', provider: 'openai', model: PROVIDERS.openai.model },
+    gemini: { id: 'gemini', label: 'Gemini', provider: 'gemini', model: PROVIDERS.gemini.model },
+    claude: { id: 'claude', label: 'Claude', provider: 'claude', model: PROVIDERS.claude.model }
   };
 
   /* kind = which reasoning engine the role uses; name is only a label.
@@ -540,6 +550,8 @@
     ROOMS: ROOMS,
     ROLE_ARCHETYPES: ROLE_ARCHETYPES,
     MODELS: MODELS,
+    PROVIDERS: PROVIDERS,
+    PROVIDER_ORDER: PROVIDER_ORDER,
     FOCUS_OPTIONS: FOCUS_OPTIONS,
     ROLE_ROOM: ROLE_ROOM,
     SAMPLES: SAMPLES,

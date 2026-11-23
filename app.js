@@ -11,16 +11,29 @@
   var Data = window.TeamRoomData;
   var I18N = window.TeamRoomI18n;
   var STORE = 'onetap.teamroom.v1';
-  var PRO_STORE = 'onetap.teamroom.pro.v1';
+  var PRO_STORE = 'onetap.teamroom.pro.v2';
+  var LEGACY_PRO_STORE = 'onetap.teamroom.pro.v1';
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
   var FOCUS_KEY = { pm: 'team.focusPm', dev: 'team.focusDev', design: 'team.focusDesign', video: 'team.focusVideo', growth: 'team.focusGrowth', sales: 'team.focusSales', cfo: 'team.focusCfo', auditor: 'team.focusAuditor' };
-  var PROVIDERS = {
-    openai: { model: 'gpt-4o-mini', endpoint: 'https://api.openai.com/v1/chat/completions' },
-    gemini: { model: 'gemini-2.5-flash', endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/' },
-    claude: { model: 'claude-sonnet-4-20250514', endpoint: 'https://api.anthropic.com/v1/messages' }
-  };
+  /* Three providers, each with its own key slot. The endpoint lives here; the
+     label, mark and default model come from data.js so node tests see the same
+     catalog the browser uses. */
+  var PROVIDERS = {};
+  Data.PROVIDER_ORDER.forEach(function (id) {
+    PROVIDERS[id] = {
+      id: id,
+      label: Data.PROVIDERS[id].label,
+      mark: Data.PROVIDERS[id].mark,
+      keyHint: Data.PROVIDERS[id].keyHint,
+      model: Data.PROVIDERS[id].model
+    };
+  });
+  PROVIDERS.openai.endpoint = 'https://api.openai.com/v1/chat/completions';
+  PROVIDERS.gemini.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  PROVIDERS.claude.endpoint = 'https://api.anthropic.com/v1/messages';
+  var PROVIDER_ORDER = Data.PROVIDER_ORDER;
   var MAX_ROLES = 10;
 
   var state = {
@@ -193,10 +206,15 @@
       if (!p.outputs.length && p.messages.length) p.outputs = projectOutputs(p);
     });
 
-    var pro = null;
-    try { pro = JSON.parse(localStorage.getItem(PRO_STORE) || 'null'); } catch (e) { pro = null; }
-    if (pro && pro.key && PROVIDERS[pro.provider]) state.pro = pro;
-    if (state.mode === 'pro' && !state.pro) state.mode = 'free';
+    var proRaw = null;
+    try { proRaw = JSON.parse(localStorage.getItem(PRO_STORE) || 'null'); } catch (e) { proRaw = null; }
+    if (!proRaw) {
+      /* A key saved by the earlier single-provider build becomes slot 1. */
+      try { proRaw = JSON.parse(localStorage.getItem(LEGACY_PRO_STORE) || 'null'); } catch (e) { proRaw = null; }
+    }
+    state.pro = normalizePro(proRaw);
+    if (state.pro && proRaw && !proRaw.providers) savePro();
+    if (state.mode === 'pro' && !proReady()) state.mode = 'free';
     state.openProjectId = currentProject() ? currentProject().id : (state.projects[0] ? state.projects[0].id : null);
   }
 
@@ -283,9 +301,42 @@
 
   function savePro() {
     try {
-      if (state.pro) localStorage.setItem(PRO_STORE, JSON.stringify(state.pro));
-      else localStorage.removeItem(PRO_STORE);
+      if (state.pro && proCount()) {
+        localStorage.setItem(PRO_STORE, JSON.stringify({ v: 2, providers: state.pro }));
+      } else {
+        localStorage.removeItem(PRO_STORE);
+      }
+      localStorage.removeItem(LEGACY_PRO_STORE);
     } catch (e) { /* ignore */ }
+  }
+
+  /* ── Pro connection: one optional key per provider ──────────────────── */
+
+  /* { openai: {model, key}, gemini: {model, key}, claude: {model, key} } with
+     only the providers that hold a key. The earlier single-key record
+     ({provider, model, key}) is read as that provider's slot. */
+  function normalizePro(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    var src = (raw.providers && typeof raw.providers === 'object') ? raw.providers : null;
+    if (!src && raw.provider && raw.key) {
+      src = {};
+      src[raw.provider] = { model: raw.model, key: raw.key };
+    }
+    if (!src) return null;
+    var out = {};
+    PROVIDER_ORDER.forEach(function (id) {
+      var one = src[id];
+      if (!one || typeof one !== 'object') return;
+      var key = typeof one.key === 'string' ? one.key.trim() : '';
+      if (!key) return;
+      var model = typeof one.model === 'string' && one.model.trim() ? one.model.trim() : PROVIDERS[id].model;
+      out[id] = { model: model, key: key };
+    });
+    return Object.keys(out).length ? out : null;
+  }
+
+  function proCount() {
+    return Core.proConnected(state.pro).length;
   }
 
   /* ── strings ─────────────────────────────────────────────────────────── */
@@ -440,7 +491,7 @@
   function renderRoster() {
     var list = $('#roster');
     if (!list) return;
-    list.innerHTML = state.roles.map(function (r) {
+    list.innerHTML = state.roles.map(function (r, i) {
       var editing = state.editingRole === r.id;
       var name = roleName(r);
       var body;
@@ -452,11 +503,22 @@
           + '</div>';
       } else {
         var model = roleModel(r);
+        var route = Core.proRoute(r.model, state.pro, i);
+        var modelLabel = route ? route.label : (model ? model.label : '');
+        var modelTitle = route
+          ? (route.fallback
+            ? t('team.modelFallbackTitle', { model: route.model, provider: route.providerLabel })
+            : t('team.modelTitle', { model: route.model }))
+          : (model ? t('team.modelTitle', { model: model.label }) : '');
+        var modelTag = modelLabel
+          ? '<span class="roster__model' + (route && route.fallback ? ' is-fallback' : '') + '" data-model="' + esc(route ? route.provider : (model ? model.provider : '')) + '" title="' + esc(modelTitle) + '">'
+            + esc(modelLabel) + (route && route.fallback ? '<b aria-hidden="true">↔</b>' : '') + '</span>'
+          : '';
         body = '<button type="button" class="roster__name" data-role-edit="' + esc(r.id) + '">' + esc(name)
           + ' <span class="roster__tag">' + esc(r.custom ? t('team.customTag') : r.tag) + '</span></button>'
           + (r.appointed ? '<span class="roster__appointed">' + esc(t('team.appointed')) + '</span>' : '')
           + '<span class="roster__focus">' + esc(t(FOCUS_KEY[r.kind] || 'team.focusPm')) + '</span>'
-          + (model ? '<span class="roster__model" title="' + esc(t('team.modelTitle', { model: model.label })) + '">' + esc(model.label) + '</span>' : '');
+          + modelTag;
       }
       var remove = r.custom && !editing
         ? '<button type="button" class="roster__remove" data-role-remove="' + esc(r.id) + '" aria-label="' + esc(t('team.remove')) + '">×</button>'
@@ -507,8 +569,16 @@
     var badge = m.mode === 'pro'
       ? '<span class="badge">' + esc(t('thread.proBadge')) + '</span>'
       : '<span class="badge">' + esc(t('thread.freeBadge')) + '</span>';
-    var model = roleModel(resolvedRoles().filter(function (r) { return r.kind === m.kind; })[0]);
-    if (model) badge += '<span class="badge badge--model">' + esc(model.label) + '</span>';
+    /* A Pro card names the provider that really answered, not the one the seat
+       was appointed to, and marks a turn that fell back to another key. */
+    if (m.provider && PROVIDERS[m.provider]) {
+      badge += '<span class="badge badge--model" data-model="' + esc(m.provider) + '" title="' + esc(m.modelName || PROVIDERS[m.provider].model) + '">'
+        + esc(m.modelLabel || PROVIDERS[m.provider].mark) + '</span>';
+    } else {
+      var model = roleModel(resolvedRoles().filter(function (r) { return r.kind === m.kind; })[0]);
+      if (model) badge += '<span class="badge badge--model" data-model="' + esc(model.provider) + '">' + esc(model.label) + '</span>';
+    }
+    if (m.mode === 'pro' && m.fallback) badge += '<span class="badge badge--fallback" title="' + esc(t('thread.fallbackTitle')) + '">' + esc(t('thread.fallbackBadge')) + '</span>';
     if (m.kind === 'auditor') badge += '<span class="badge badge--audit">' + esc(t('thread.auditBadge')) + '</span>';
     var replyLine = m.replyTo
       ? '<p class="msg__replyto">↳ ' + esc(t('thread.replyTo', { name: parentName(m.replyTo) })) + '</p>'
@@ -818,9 +888,18 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
     var gear = $('#proOpen');
+    var n = proCount();
     if (gear) {
-      gear.classList.toggle('has-key', !!state.pro);
-      gear.style.color = state.pro ? 'var(--ok)' : '';
+      gear.classList.toggle('has-key', n > 0);
+      gear.style.color = n > 0 ? 'var(--ok)' : '';
+      gear.setAttribute('data-count', String(n));
+    }
+    var count = $('#proCount');
+    if (count) {
+      count.hidden = n === 0;
+      count.textContent = n + '/' + PROVIDER_ORDER.length;
+      count.classList.toggle('is-full', n === PROVIDER_ORDER.length);
+      count.setAttribute('title', t('pro.countTitle', { n: n, total: PROVIDER_ORDER.length }));
     }
   }
 
@@ -1033,6 +1112,7 @@
     renderActions();
     renderSummary();
     renderMode();
+    renderProStatus();
     renderLive();
     renderProjects();
   }
@@ -1212,7 +1292,13 @@
   /* ── Pro: provider calls ─────────────────────────────────────────────── */
 
   function proReady() {
-    return !!(state.pro && state.pro.key && PROVIDERS[state.pro.provider]);
+    return proCount() > 0;
+  }
+
+  /* The model mark that will actually answer this seat right now. */
+  function routeLabel(role, index) {
+    var route = Core.proRoute(role && role.model, state.pro, index);
+    return route ? route.label : '';
   }
 
   function maskKey(key) {
@@ -1221,12 +1307,12 @@
     return key.slice(0, 4) + '…' + key.slice(-4);
   }
 
-  function callProvider(messages, signal) {
-    var cfg = state.pro;
-    if (!cfg || !PROVIDERS[cfg.provider]) return Promise.reject(new Error('bad config'));
-    var provider = cfg.provider;
-    var model = (cfg.model || PROVIDERS[provider].model).trim();
-    var key = cfg.key;
+  function callProvider(messages, signal, target) {
+    var t = target || Core.proRoute('gemini', state.pro, 0);
+    if (!t || !PROVIDERS[t.provider] || !state.pro || !state.pro[t.provider]) return Promise.reject(new Error('bad config'));
+    var provider = t.provider;
+    var model = (t.model || PROVIDERS[provider].model).trim();
+    var key = state.pro[provider].key;
     var url, options;
 
     if (provider === 'openai') {
@@ -1352,7 +1438,7 @@
     var timer = setTimeout(function () { controller.abort(); }, 60000);
     state.replyTo = null;
     clearError();
-    setGenerating(true, t('pro.running', { name: roles[startIndex].name, i: startIndex + 1 }));
+    setGenerating(true, t('pro.running', { name: roles[startIndex].name, i: startIndex + 1, model: routeLabel(roles[startIndex], startIndex) }));
     renderThread();
 
     var index = startIndex;
@@ -1372,10 +1458,18 @@
         return;
       }
       var role = roles[index];
+      var route = Core.proRoute(role.model, state.pro, index);
+      if (!route) {
+        clearTimeout(timer);
+        setGenerating(false);
+        state.thinking = null;
+        openModal('pro');
+        return;
+      }
       state.thinking = role.name;
       state.speakingId = role.id;
       state.livePreview = '';
-      var label = t('pro.running', { name: role.name, i: index + 1 });
+      var label = t('pro.running', { name: role.name, i: index + 1, model: route.label });
       var txt = $('#runProgressText');
       if (txt) txt.textContent = label;
       renderThread();
@@ -1390,7 +1484,7 @@
         roles: roles,
         transcript: transcriptText()
       });
-      callProvider(messages, controller.signal).then(function (text) {
+      callProvider(messages, controller.signal, route).then(function (text) {
         if (token !== state.token) return;
         var parsed = Core.parsePro(text, role, lang());
         var msg = {
@@ -1403,6 +1497,10 @@
           accent: role.accent,
           mode: 'pro',
           round: plan.round,
+          provider: route.provider,
+          modelLabel: route.label,
+          modelName: route.model,
+          fallback: route.fallback,
           replyTo: null,
           blocks: parsed.blocks,
           claims: [],
@@ -1475,12 +1573,16 @@
         roles: resolvedRoles(),
         transcript: transcriptText('You replied to ' + parent.name + ': ' + text.trim() + '\nRespond to that reply as ' + role.name + ' only.')
       });
-      callProvider(prompt, controller.signal).then(function (out) {
+      var replyRoute = Core.proRoute(role.model, state.pro, 0);
+      if (!replyRoute) { openModal('pro'); return; }
+      callProvider(prompt, controller.signal, replyRoute).then(function (out) {
         if (token !== state.token) return;
         var parsed = Core.parsePro(out, role, lang());
         var msg = {
           id: uid('msg'), roleId: role.id, kind: role.kind, name: role.name, tag: role.tag,
           glyph: role.glyph, accent: role.accent, mode: 'pro', round: parent.round || 1,
+          provider: replyRoute.provider, modelLabel: replyRoute.label, modelName: replyRoute.model,
+          fallback: replyRoute.fallback,
           replyTo: userMsg.id, blocks: parsed.blocks, claims: [],
           itemIds: parsed.items.map(function (x) { return x.id; }), ts: Date.now()
         };
@@ -1626,29 +1728,99 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  /* Each provider has its own slot. A saved key is never printed back: the
+     field stays empty with the masked key as its placeholder, and an empty
+     field on save keeps the stored key instead of wiping it. */
   function fillProForm() {
-    var p = state.pro || { provider: 'openai', model: PROVIDERS.openai.model, key: '' };
-    var provider = $('#proProvider');
-    var model = $('#proModel');
-    var key = $('#proKey');
-    if (provider) provider.value = p.provider || 'openai';
-    if (model) model.value = p.model || PROVIDERS[p.provider || 'openai'].model;
-    if (key) key.value = p.key || '';
-    renderProStatus();
+    PROVIDER_ORDER.forEach(function (id) {
+      var cfg = (state.pro && state.pro[id]) || null;
+      var model = $('[data-pro-model="' + id + '"]');
+      var key = $('[data-pro-key="' + id + '"]');
+      if (model) model.value = cfg ? cfg.model : PROVIDERS[id].model;
+      if (key) {
+        key.value = '';
+        key.placeholder = cfg ? maskKey(cfg.key) : PROVIDERS[id].keyHint;
+        key.setAttribute('data-saved', cfg ? '1' : '0');
+      }
+    });
     var err = $('#proError');
-    if (err) err.hidden = true;
+    if (err) { err.hidden = true; err.textContent = ''; }
+    renderProStatus();
   }
 
   function renderProStatus() {
+    var n = proCount();
+    var total = PROVIDER_ORDER.length;
     var el = $('#proStatusValue');
-    if (!el) return;
-    if (state.pro) {
-      el.textContent = t('pro.ready') + ' · ' + state.pro.provider + ' · ' + maskKey(state.pro.key);
-      el.classList.add('is-ready');
-    } else {
-      el.textContent = t('pro.none');
-      el.classList.remove('is-ready');
+    if (el) {
+      el.textContent = n === 0 ? t('pro.none')
+        : n === total ? t('pro.allConnected', { n: n, total: total })
+        : t('pro.someConnected', { n: n, total: total });
+      el.setAttribute('data-count', String(n));
+      el.classList.toggle('is-ready', n === total);
+      el.classList.toggle('is-partial', n > 0 && n < total);
     }
+    var chip = $('#proStatusBadge');
+    if (chip) {
+      chip.textContent = n + '/' + total;
+      chip.hidden = n === 0;
+      chip.classList.toggle('is-full', n === total);
+    }
+    PROVIDER_ORDER.forEach(function (id) {
+      var on = !!(state.pro && state.pro[id]);
+      var slot = $('[data-pro-slot="' + id + '"]');
+      if (slot) slot.classList.toggle('is-connected', on);
+      var mark = $('[data-pro-badge="' + id + '"]');
+      if (mark) {
+        mark.textContent = on ? t('pro.connected') : t('pro.notConnected');
+        mark.classList.toggle('is-on', on);
+      }
+      var clear = $('[data-pro-clear="' + id + '"]');
+      if (clear) clear.disabled = !on;
+      var saved = $('[data-pro-saved="' + id + '"]');
+      if (saved) {
+        saved.hidden = !on;
+        saved.textContent = on ? t('pro.savedOn', { key: maskKey(state.pro[id].key) }) : '';
+      }
+    });
+  }
+
+  function saveProvider(id) {
+    if (!PROVIDERS[id]) return;
+    var modelEl = $('[data-pro-model="' + id + '"]');
+    var keyEl = $('[data-pro-key="' + id + '"]');
+    var err = $('#proError');
+    var typed = keyEl ? keyEl.value.trim() : '';
+    var stored = (state.pro && state.pro[id] && state.pro[id].key) || '';
+    var key = typed || stored;
+    var model = (modelEl && modelEl.value.trim()) || PROVIDERS[id].model;
+    if (!key) {
+      if (err) { err.textContent = t('pro.invalid'); err.hidden = false; }
+      if (keyEl) keyEl.focus();
+      return;
+    }
+    state.pro = state.pro || {};
+    state.pro[id] = { model: model, key: key };
+    savePro();
+    state.mode = 'pro';
+    save();
+    fillProForm();
+    renderMode();
+    renderRoster();
+    toast(t('toast.proSavedOne', { provider: PROVIDERS[id].mark }));
+  }
+
+  function clearProvider(id) {
+    if (!state.pro || !state.pro[id]) return;
+    delete state.pro[id];
+    if (!Object.keys(state.pro).length) state.pro = null;
+    savePro();
+    if (!proReady()) state.mode = 'free';
+    save();
+    fillProForm();
+    renderMode();
+    renderRoster();
+    toast(t('toast.proDeletedOne', { provider: PROVIDERS[id].mark }));
   }
 
   /* ── reset ───────────────────────────────────────────────────────────── */
@@ -2062,6 +2234,7 @@
           tag: t('team.customTag'),
           glyph: name.slice(0, 1).toUpperCase(),
           accent: arch.accent,
+          model: arch.model,
           name: { ko: name, en: name },
           custom: true
         });
@@ -2089,50 +2262,41 @@
 
     var proForm = $('#proForm');
     if (proForm) {
-      proForm.addEventListener('submit', function (e) {
+      proForm.addEventListener('submit', function (e) { e.preventDefault(); });
+      proForm.addEventListener('click', function (e) {
+        var save = e.target.closest('[data-pro-save]');
+        if (save) { saveProvider(save.getAttribute('data-pro-save')); return; }
+        var clear = e.target.closest('[data-pro-clear]');
+        if (clear) { clearProvider(clear.getAttribute('data-pro-clear')); return; }
+        var reset = e.target.closest('[data-pro-reset-model]');
+        if (reset) {
+          var id = reset.getAttribute('data-pro-reset-model');
+          var model = $('[data-pro-model="' + id + '"]');
+          if (model && PROVIDERS[id]) model.value = PROVIDERS[id].model;
+        }
+      });
+      /* Enter inside a slot saves that slot, not the whole form. */
+      proForm.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        var field = e.target.closest('[data-pro-model], [data-pro-key]');
+        if (!field) return;
         e.preventDefault();
-        var provider = $('#proProvider').value;
-        var model = $('#proModel').value.trim();
-        var key = $('#proKey').value.trim();
-        var err = $('#proError');
-        if (!key) {
-          if (err) { err.textContent = t('pro.invalid'); err.hidden = false; }
-          return;
-        }
-        if (!model) {
-          if (err) { err.textContent = t('pro.modelRequired'); err.hidden = false; }
-          return;
-        }
-        state.pro = { provider: provider, model: model, key: key };
-        savePro();
-        state.mode = 'pro';
-        save();
-        if (err) err.hidden = true;
-        renderProStatus();
-        renderMode();
-        closeModal('pro');
-        toast(t('toast.proSaved'));
+        var slot = field.closest('[data-pro-slot]');
+        if (slot) saveProvider(slot.getAttribute('data-pro-slot'));
       });
     }
 
-    var proDelete = $('#proDelete');
-    if (proDelete) proDelete.addEventListener('click', function () {
+    var proDeleteAll = $('#proDeleteAll');
+    if (proDeleteAll) proDeleteAll.addEventListener('click', function () {
+      if (!proCount()) return;
       state.pro = null;
-      savePro();
       state.mode = 'free';
+      savePro();
       save();
       fillProForm();
       renderMode();
+      renderRoster();
       toast(t('toast.proDeleted'));
-    });
-
-    var proProvider = $('#proProvider');
-    if (proProvider) proProvider.addEventListener('change', function () {
-      var model = $('#proModel');
-      var next = proProvider.value;
-      if (model && (!model.value || Object.keys(PROVIDERS).some(function (p) { return PROVIDERS[p].model === model.value; }))) {
-        model.value = PROVIDERS[next].model;
-      }
     });
 
     /* Projects & outputs panel: pick a project, filter it, copy or export its

@@ -1949,6 +1949,39 @@
     ];
   }
 
+  /* ── Pro routing: which provider actually answers a seat ─────────────── */
+
+  /* The ids that have a key in the stored connection, in panel order. */
+  function proConnected(connected) {
+    var keys = connected && typeof connected === 'object' ? connected : {};
+    return Data.PROVIDER_ORDER.filter(function (id) {
+      return !!(keys[id] && String(keys[id].key || '').trim());
+    });
+  }
+
+  /* The seat's appointed provider wins when it has a key. Otherwise the turn
+     falls back to a connected provider, rotated by the seat's position in the
+     round so one key does not answer every seat alone. null = no key at all. */
+  function proRoute(modelKey, connected, order) {
+    var keys = connected && typeof connected === 'object' ? connected : {};
+    var wanted = (Data.MODELS[modelKey] || Data.MODELS.gemini).provider;
+    function take(id, fallback) {
+      var cfg = keys[id] || {};
+      return {
+        provider: id,
+        model: String(cfg.model || Data.PROVIDERS[id].model),
+        label: Data.PROVIDERS[id].mark,
+        providerLabel: Data.PROVIDERS[id].label,
+        fallback: !!fallback
+      };
+    }
+    if (keys[wanted] && String(keys[wanted].key || '').trim()) return take(wanted, false);
+    var live = proConnected(keys);
+    if (!live.length) return null;
+    var n = Math.abs(parseInt(order, 10) || 0) % live.length;
+    return take(live[n], true);
+  }
+
   function stripBullet(line) {
     return String(line || '').replace(/^\s*(?:[-*•·]|\d+[.)])\s*/, '').trim();
   }
@@ -2360,6 +2393,8 @@
     minutes: minutes,
     summarize: summarize,
     proPrompts: proPrompts,
+    proConnected: proConnected,
+    proRoute: proRoute,
     parsePro: parsePro,
     buildOutputs: buildOutputs,
     outputsMinutes: outputsMinutes,
