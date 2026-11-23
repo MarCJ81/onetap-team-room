@@ -1901,18 +1901,16 @@
       if (token !== state.token) return;
       if (index >= roles.length) { finishProRound(); return; }
       var role = roles[index];
-      var prompt = Core.bridgePrompt({
-        role: role,
-        lang: l,
-        agenda: plan.text,
-        room: state.room,
-        roomName: roomInfo(state.room).name[l],
-        roles: roles,
-        prior: []
-      });
+      /* 무료 체험은 짧은 프롬프트(Worker 12초 제한 실측). 4블록·액션 1개만 요청한다. */
+      var ko = l === 'ko';
+      var prompt = ko
+        ? '제품 팀 회의에서 ' + role.name + ' 자리로 발언해라. 안건: ' + plan.text + '\n' +
+          '형식: 관점: 한 문장 / 제안: - 2개 / 리스크: - 1개 / 액션: - 담당 | 기한 | 할 일 (각 한 줄, 200자 이내, 없는 수치 금지)'
+        : 'Speak as the ' + role.name + ' seat in a product team meeting. Agenda: ' + plan.text + '\n' +
+          'Format: View: one sentence / Plan: - 2 items / Risk: - 1 item / Action: - owner | due | task (one line each, under 200 words, no invented figures)';
       var txt = $('#runProgressText');
       if (txt) txt.textContent = '무료 AI가 답하는 중… ' + (index + 1) + '/' + roles.length + ' · ' + role.name;
-      FA.generate({ task: 'text', prompt: prompt, options: { temperature: 0.6, maxTokens: 900 } }, { timeoutMs: 45000 })
+      FA.generate({ task: 'text', prompt: prompt, options: { temperature: 0.6, maxTokens: 500 } }, { timeoutMs: 45000 })
         .then(function (res) {
           if (token !== state.token) return null;
           if (res && res.ok) {
