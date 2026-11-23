@@ -21,7 +21,7 @@
   var VERSION = '1.0.0';
   var STORAGE_KEY = 'freeai.endpoint.v1';
   var VISITOR_KEY = 'freeai.visitor.v1';
-  var DEFAULT_ENDPOINT = 'https://free-ai-taste.goodday810202.workers.dev';
+  var DEFAULT_ENDPOINT = 'https://free-ai-taste.onetap-ai.workers.dev';
   var DEFAULT_TIMEOUT = 30000;
 
   var config = {

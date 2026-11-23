@@ -12,7 +12,7 @@
   var I18N = window.TeamRoomI18n;
   var AG = window.AiGuard || null;      // engines/ai-guard.js (zod 구조 검증·재시도)
   var FA = window.FreeAI || null;       // engines/free-ai-client.js (무료 AI 맛보기)
-  if (FA) FA.configure({ endpoint: 'https://free-ai-taste.goodday810202.workers.dev', app: 'ai-team-room' });
+  if (FA) FA.configure({ endpoint: 'https://free-ai-taste.onetap-ai.workers.dev', app: 'ai-team-room' });
   var STORE = 'onetap.teamroom.v1';
   var PRO_STORE = 'onetap.teamroom.pro.v2';
   var LEGACY_PRO_STORE = 'onetap.teamroom.pro.v1';

@@ -38,7 +38,7 @@ SOFTWARE.
 ## 무료 AI 체험 서버
 
 `engines/free-ai-client.js`는 이 저장소의 Cloudflare Worker
-(`free-ai-taste.goodday810202.workers.dev`)를 호출하는 클라이언트입니다.
+(`free-ai-taste.onetap-ai.workers.dev`)를 호출하는 클라이언트입니다.
 이 파일은 이 프로젝트의 코드이며, 외부 라이브러리를 포함하지 않습니다.
 무료 체험은 외부 AI 제공자(Cloudflare Workers AI / Google Gemini / Groq)로
 전송되며, 앱은 그 사실을 화면에 안내합니다.
