@@ -1488,6 +1488,24 @@ svg { display: block; }
 .hq__stage > * { position: relative; z-index: 1; }
 .hq__stage > .mroom { grid-column: 1 / -1; }
 .hq__rail { display: contents; }
+/* figures fly between the desks and the table on this layer */
+.hq__travel {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  overflow: visible;
+}
+.hq__stage > .hq__travel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; height: 100%; z-index: 30; }
+.traveler {
+  position: absolute;
+  display: block;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+  filter: drop-shadow(0 4px 4px rgba(74, 44, 18, .38));
+}
+.traveler svg { display: block; width: 100%; height: auto; }
+.traveler--out { opacity: .95; }
 
 /* ── one department = one framed clay room ────────────────────────────── */
 .monitor {
@@ -1688,17 +1706,173 @@ svg { display: block; }
 .monitor.is-done .monitor__badge i { background: var(--ok); }
 .monitor.is-done .monitor__glyph { background: var(--ok-soft); color: var(--ok); }
 
-/* the figure moves only while that desk is on air */
-.monitor.is-live .monitor__figure .fig { animation: figBreathe 1.9s ease-in-out infinite; }
+/* ── the clay desk widget: one animated workflow per department ───────── */
+/* Every department works at its desk all day. The widget is a small cream
+   card in the room (board · code · palette · cut timeline · chart · checklist
+   · chat ping · proposal) and its parts move on their own keyframes. */
+.monitor__props {
+  position: absolute;
+  left: 3%;
+  bottom: 3%;
+  z-index: 2;
+  width: 36%;
+  height: 26%;
+  padding: 1.5px;
+  border-radius: 6px;
+  border: 1px solid rgba(92, 58, 24, .26);
+  background: rgba(255, 249, 236, .88);
+  box-shadow: 0 5px 10px -9px rgba(74, 44, 18, .95), inset 0 1px 0 rgba(255, 255, 255, .7);
+  pointer-events: none;
+  overflow: hidden;
+  transition: box-shadow .25s ease, opacity .25s ease;
+}
+.monitor__props svg { width: 100%; height: 100%; display: block; }
+.monitor.is-current .monitor__props { box-shadow: 0 0 0 1px rgba(180, 83, 9, .45), 0 0 10px 1px rgba(244, 185, 106, .35), inset 0 1px 0 rgba(255, 255, 255, .7); }
+/* While the team is in the meeting the desk is unattended: the room dims and
+   only the department that is speaking keeps its desk lit. */
+.monitor.is-away .monitor__bg { filter: saturate(.66) brightness(.82); }
+.monitor.is-away .monitor__figure { opacity: .52; }
+.monitor.is-away .monitor__props { opacity: .34; }
+.monitor.is-away .monitor__props [class*="prop__"] { animation-duration: 6.4s; }
+.monitor.is-live .monitor__props { opacity: 1; box-shadow: 0 0 0 1px rgba(201, 96, 63, .55), 0 0 12px 1px rgba(201, 96, 63, .3); }
+.monitor.is-live .monitor__props [class*="prop__"] { animation-duration: .85s; }
+.monitor__away {
+  position: absolute;
+  top: 30px;
+  right: 5px;
+  z-index: 3;
+  padding: 1px 6px 2px;
+  border: 1px dashed rgba(92, 58, 24, .38);
+  border-radius: 999px;
+  background: rgba(255, 251, 241, .95);
+  font-size: 8.4px;
+  font-weight: 800;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* board: sticky notes, marker lines and a hand that moves across the board */
+.prop__scribble, .prop__mark, .prop__stroke, .prop__trend, .prop__write {
+  animation: propDraw 3.4s ease-in-out infinite;
+}
+.prop__scribble--b { animation-delay: .9s; }
+.prop__mark { animation-delay: 1.6s; }
+.prop__stroke { animation-duration: 2.6s; }
+.prop__trend { animation-duration: 3s; }
+.prop__write { animation-duration: 2.2s; }
+@keyframes propDraw {
+  0% { stroke-dashoffset: 100; opacity: .2; }
+  40% { stroke-dashoffset: 0; opacity: 1; }
+  82% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 100; opacity: .2; }
+}
+.prop__pointer { animation: propPoint 4.6s ease-in-out infinite; }
+@keyframes propPoint {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(13px, -7px); }
+  62% { transform: translate(-7px, 5px); }
+}
+/* code: the line list scrolls, the caret blinks, the screen breathes */
+.prop__code { animation: propScroll 3.2s linear infinite; }
+@keyframes propScroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-12.8px); }
+}
+.prop__caret { animation: propBlink 1.1s steps(1, end) infinite; }
+@keyframes propBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.prop__screen { animation: propScreen 2.6s ease-in-out infinite; }
+@keyframes propScreen { 0%, 100% { opacity: .07; } 50% { opacity: .24; } }
+/* palette: the brush stroke redraws, one swatch glows */
+.prop__swatch { animation: propSwatch 3.6s ease-in-out infinite; }
+@keyframes propSwatch { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.prop__brush { animation: propBrush 2.8s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 80%; }
+@keyframes propBrush { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-6deg); } }
+/* video: the playhead scrubs the track, the preview sweeps */
+.prop__play { animation: propPlay 4.4s ease-in-out infinite alternate; }
+@keyframes propPlay { from { transform: translateX(2px); } to { transform: translateX(80px); } }
+.prop__sweep { animation: propSweep 2.2s ease-in-out infinite; }
+@keyframes propSweep {
+  0% { transform: translateX(-6px); opacity: .1; }
+  60% { transform: translateX(38px); opacity: .5; }
+  100% { transform: translateX(38px); opacity: 0; }
+}
+/* marketing: bars grow, the trend line draws */
+.prop__bar { transform-box: fill-box; transform-origin: 50% 100%; animation: propBar 2.4s ease-in-out infinite alternate; }
+.prop__bar--b { animation-delay: .22s; }
+.prop__bar--c { animation-delay: .44s; }
+.prop__bar--d { animation-delay: .66s; }
+@keyframes propBar { from { transform: scaleY(.58); } to { transform: scaleY(1); } }
+/* ops: ticks land one by one, status lamps light in sequence, a CS ping rings */
+.prop__tick { animation: propTick 4.2s ease-in-out infinite; }
+.prop__tick--1 { animation-delay: .6s; }
+.prop__tick--2 { animation-delay: 1.2s; }
+@keyframes propTick {
+  0% { stroke-dashoffset: 12; opacity: .25; }
+  18%, 80% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 12; opacity: .25; }
+}
+.prop__lamp { animation: propLamp 3.6s ease-in-out infinite; }
+.prop__lamp--b { animation-delay: 1.2s; }
+.prop__lamp--c { animation-delay: 2.4s; }
+@keyframes propLamp { 0%, 100% { opacity: .25; } 30%, 60% { opacity: 1; } }
+.prop__ping { transform-box: fill-box; transform-origin: 50% 50%; animation: propPing 2.4s ease-out infinite; }
+.prop__ping--c { animation-delay: 1.1s; }
+@keyframes propPing {
+  0% { transform: scale(.6); opacity: .9; }
+  70% { transform: scale(2.3); opacity: 0; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+/* cs: the two chat bubbles answer each other */
+.prop__bubble { transform-box: fill-box; transform-origin: 50% 100%; animation: propBubble 3.4s ease-in-out infinite; }
+.prop__bubble--b { animation-delay: 1.5s; }
+@keyframes propBubble {
+  0%, 100% { transform: scale(.94); opacity: .55; }
+  22%, 62% { transform: scale(1); opacity: 1; }
+}
+/* sales: the proposal pages turn */
+.prop__page { transform-box: fill-box; transform-origin: 8% 50%; animation: propPage 4s ease-in-out infinite; }
+.prop__page--b { animation-delay: 2s; }
+@keyframes propPage {
+  0%, 68%, 100% { transform: scaleX(1); }
+  82% { transform: scaleX(.12); }
+}
+/* notes: a pen writes, a lens checks */
+.prop__pen { animation: propPen 1.8s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 50% 30%; }
+@keyframes propPen { from { transform: translate(0, 0); } to { transform: translate(-7px, -2px); } }
+.prop__lens { animation: propLens 4.2s ease-in-out infinite; }
+@keyframes propLens {
+  0%, 100% { transform: translate(0, 0); }
+  45% { transform: translate(-9px, -6px); }
+}
+
+/* the figure works while its desk is staffed; the current room works livelier */
+.monitor.is-working .monitor__figure .fig { animation: figBreathe 3.6s ease-in-out infinite; }
+.monitor.is-current.is-working .monitor__figure .fig { animation-duration: 2.1s; }
+.fig__head { transform-box: fill-box; transform-origin: 50% 92%; }
+.monitor.is-working .fig__head { animation: figNod 5.4s ease-in-out infinite; }
+.monitor.is-current .fig__head { animation-duration: 3.4s; }
+@keyframes figNod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-1.6deg); } }
 @keyframes figBreathe {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-1.6px); }
 }
+
+/* one pair of arms per department pose (typing · writing · pointing ·
+   presenting · talking), so two rooms never work the same way */
 .fig__arm { transform-box: fill-box; transform-origin: 50% 12%; }
-.monitor.is-live .fig__arm--l { animation: clayTypeL .7s ease-in-out infinite alternate; }
-.monitor.is-live .fig__arm--r { animation: clayTypeR .7s ease-in-out infinite alternate; }
+.fig--type .fig__arm--l { animation: clayTypeL 1.5s ease-in-out infinite alternate; }
+.fig--type .fig__arm--r { animation: clayTypeR 1.5s ease-in-out infinite alternate; }
+.fig--write .fig__arm--r { animation: clayWrite 1.2s ease-in-out infinite alternate; }
+.fig--point .fig__arm--r { animation: clayPoint 2.8s ease-in-out infinite; }
+.fig--present .fig__arm--r { animation: clayPresent 3s ease-in-out infinite; }
+.fig--talk .fig__arm--r { animation: clayTalk 2.4s ease-in-out infinite; }
+.fig--up .fig__arm--r { animation: clayHandUp 1.4s ease-in-out infinite alternate; }
 @keyframes clayTypeL { from { transform: rotate(0deg); } to { transform: rotate(-5deg); } }
 @keyframes clayTypeR { from { transform: rotate(0deg); } to { transform: rotate(5deg); } }
+@keyframes clayWrite { from { transform: rotate(0deg); } to { transform: rotate(-4.5deg); } }
+@keyframes clayPoint { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-6deg); } }
+@keyframes clayPresent { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(5deg); } }
+@keyframes clayTalk { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-5deg); } }
 .fig__eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: clayBlink 6.4s ease-in-out infinite; }
 @keyframes clayBlink {
   0%, 92%, 100% { transform: scaleY(1); }
@@ -1791,10 +1965,14 @@ svg { display: block; }
 .mroom__seats { display: flex; justify-content: center; align-items: flex-end; gap: 2px; min-width: 0; position: absolute; left: 4%; right: 4%; }
 .mroom__seats--back { top: 30%; align-items: flex-start; z-index: 2; }
 .mroom__seats--back .seat { flex-direction: column-reverse; padding-bottom: 0; }
-.mroom__seats--back .seat__body { margin-bottom: 1px; }
+.mroom__seats--back .seat__body { margin-bottom: 1px; transition: margin-bottom .25s ease; }
+/* back-row name plates sit above the head, so the speaker's plate lifts to
+   leave the raised hand in view */
+.mroom__seats--back .seat.is-live .seat__body { margin-bottom: 12px; }
 .mroom__seats--front { top: 66%; z-index: 4; }
 
 .seat {
+  position: relative;
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
@@ -1841,11 +2019,37 @@ svg { display: block; }
   white-space: nowrap;
 }
 .seat.is-empty { opacity: .94; }
-.seat.is-live { border-color: rgba(201, 96, 63, .55); background: transparent; box-shadow: 0 0 0 3px rgba(201, 96, 63, .14), 0 8px 18px -16px rgba(166, 46, 27, .9); }
+/* arriving at the table: the figure pops up on its stool, one seat after
+   another — only during the assembly moment, so later repaints never blink */
+.hq__stage[data-arriving="1"] .seat.is-in .seat__avatar .fig {
+  animation: seatArrive .5s cubic-bezier(.3, .8, .35, 1) both;
+  animation-delay: calc(360ms + var(--i, 0) * 55ms);
+}
+@keyframes seatArrive {
+  from { opacity: 0; transform: translateY(12px) scale(.86); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* listening: the head nods, the hand takes notes */
+.seat.is-listen .fig__head { animation: seatNod 2.8s ease-in-out infinite; }
+.seat.is-listen .fig__arm--r { animation-duration: 1.4s; }
+@keyframes seatNod {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-2.4deg); }
+  60% { transform: rotate(1.2deg); }
+}
+/* speaking: a warm halo behind the figure (no box outline cutting the seat) */
+@keyframes seatHalo {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+.seat.is-done .seat__badge { color: var(--ok); }
+/* speaking: bounce, raised hand, warm outline */
+.seat.is-live { border-color: transparent; background: radial-gradient(72% 58% at 50% 76%, rgba(201, 96, 63, .2), rgba(201, 96, 63, 0) 74%); }
+.seat.is-live .seat__avatar { animation: seatHalo 1.9s ease-in-out infinite; }
+.seat.is-live .seat__avatar .fig { filter: drop-shadow(0 0 6px rgba(201, 96, 63, .55)) drop-shadow(0 3px 3px rgba(74, 44, 18, .34)); }
 .seat.is-live .seat__badge { color: var(--danger); }
 .seat.is-live .seat__avatar { animation: seatBob 1.5s ease-in-out infinite; }
 .seat.is-live .fig__arm--r { animation: clayHandUp 1.1s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 30% 80%; }
-.seat.is-done .seat__badge { color: var(--ok); }
 @keyframes seatBob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
@@ -1871,6 +2075,7 @@ svg { display: block; }
 .mroom__air {
   position: absolute;
   left: 50%;
+  transition: left .3s ease;
   top: 4%;
   transform: translateX(-50%);
   z-index: 5;
@@ -2110,10 +2315,11 @@ svg { display: block; }
   .seat__name { font-size: 8.8px; }
   .seat__body { padding: 1px 4px; }
   .seat__badge { font-size: 8px; }
-  .mroom__air { max-width: 78%; padding: 4px 7px 5px; }
-  .mroom__bubble { font-size: 9.4px; -webkit-line-clamp: 3; }
+  /* the live bubble rides at the very top of the small floor so it never
+     covers the back-row name plates */
+  .mroom__air { top: .5%; max-width: 92%; padding: 2px 7px 3px; }
+  .mroom__bubble { font-size: 9.2px; -webkit-line-clamp: 1; }
   .mroom__note { max-width: 46ch; font-size: 9.6px; padding: 3px 7px; }
-  .mroom__air { top: 30%; }
   .monitor__say { top: 34px; font-size: 8.2px; }
   .monitor__head { padding: 1px 6px 1px 2px; }
   .mroom__note { top: 36%; }

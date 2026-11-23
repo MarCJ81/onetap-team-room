@@ -58,6 +58,134 @@
     return ROOM_ART[keys[hash(id) % keys.length]];
   }
 
+  /* ── what each room does all day ─────────────────────────────────────── */
+  /* Every department works at its own desk while no meeting is running: the
+     clay desk widget on the left of the room shows the work (a cork board, a
+     code screen, a palette, a cut timeline, a chart, a checklist, a chat ping,
+     a proposal folder) and the figure holds the matching pose. A department
+     the user adds gets a stable kind and pose from its name. */
+  var DEPT_WORK = {
+    general: { kind: 'notes', pose: 'write' },
+    plan: { kind: 'board', pose: 'point' },
+    dev: { kind: 'code', pose: 'type' },
+    design: { kind: 'palette', pose: 'write' },
+    video: { kind: 'timeline', pose: 'point' },
+    marketing: { kind: 'chart', pose: 'point' },
+    sales: { kind: 'pitch', pose: 'present' },
+    ops: { kind: 'checklist', pose: 'write' }
+  };
+  var WORK_KINDS = ['notes', 'board', 'code', 'palette', 'timeline', 'chart', 'pitch', 'checklist'];
+  var POSE_BY_KIND = {
+    notes: 'write', board: 'point', code: 'type', palette: 'write',
+    timeline: 'point', chart: 'point', pitch: 'present', checklist: 'write'
+  };
+
+  function workFor(roomId) {
+    if (DEPT_WORK[roomId]) return DEPT_WORK[roomId];
+    var kind = WORK_KINDS[hash('work:' + roomId) % WORK_KINDS.length];
+    return { kind: kind, pose: POSE_BY_KIND[kind] };
+  }
+
+  /* ── the clay desk widget: one animated prop set per kind ────────────── */
+  /* Pure SVG; every moving part carries a class the stylesheet animates
+     (code lines scroll, bars grow, lamps light in turn, the playhead sweeps).
+     viewBox 100×56 sits in a small cream card at the left of the room. */
+  function deskProps(kind) {
+    var k = DEPT_WORK[kind] ? kind : (WORK_KINDS.indexOf(kind) >= 0 ? kind : 'notes');
+    var p = [];
+    if (k === 'board') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#E6C9A0" stroke="#B98A5A"/>');
+      p.push('<rect x="8" y="8" width="37" height="23" rx="2" fill="#FFF7E4"/>');
+      p.push('<rect x="52" y="8" width="38" height="23" rx="2" fill="#F6E3BE"/>');
+      p.push('<path class="prop__scribble" d="M12 14h28M12 19h21M12 23h25" stroke="#B45309" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="86" stroke-dashoffset="86"/>');
+      p.push('<path class="prop__scribble prop__scribble--b" d="M56 14h29M56 19h19M56 23h24" stroke="#8A6A47" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="78" stroke-dashoffset="78"/>');
+      p.push('<path class="prop__mark" d="M10 36h36M10 43h23" stroke="#5C7A4A" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="40" stroke-dashoffset="40"/>');
+      p.push('<circle cx="27" cy="7" r="2.4" fill="#A8492A"/><circle cx="71" cy="7" r="2.4" fill="#96690D"/>');
+      p.push('<circle class="prop__pointer" cx="58" cy="26" r="3" fill="#3A2A1C" opacity=".6"/>');
+    } else if (k === 'code') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#3A2A1C"/>');
+      p.push('<rect class="prop__screen" x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#F4B96A" opacity=".1"/>');
+      p.push('<g class="prop__code">');
+      ['10:32:#EBD9B6', '16:42:#A8C08A', '22:24:#F0C98A', '28:36:#A8C08A', '34:30:#EBD9B6', '40:20:#F0C98A', '46:33:#A8C08A', '52:26:#EBD9B6'].forEach(function (row, i) {
+        var bits = row.split(':');
+        p.push('<rect x="' + bits[0] + '" y="' + (6 + i * 6.4) + '" width="' + bits[1] + '" height="2.6" rx="1.3" fill="' + bits[2] + '"/>');
+      });
+      p.push('</g>');
+      p.push('<rect class="prop__caret" x="10" y="46" width="2.6" height="5" rx="1" fill="#FBE3B0"/>');
+    } else if (k === 'palette') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      p.push('<rect x="6" y="6" width="50" height="44" rx="3" fill="#FFFDF6" stroke="#E4D2B4"/>');
+      p.push('<path class="prop__stroke" d="M9 45c7-12 12-3 18-12s10 6 16-7" fill="none" stroke="#A85C63" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="72" stroke-dashoffset="72"/>');
+      p.push('<circle cx="12" cy="13" r="3.2" fill="#B45309"/><circle cx="49" cy="12" r="3.2" fill="#5C7A4A"/>');
+      p.push('<circle class="prop__swatch" cx="72" cy="31" r="16" fill="#F2DEC0" stroke="#C9A173"/>');
+      p.push('<circle cx="65" cy="25" r="4.2" fill="#B45309"/><circle cx="79" cy="25" r="4.2" fill="#A85C63"/>');
+      p.push('<circle cx="65" cy="37" r="4.2" fill="#96690D"/><circle cx="79" cy="37" r="4.2" fill="#5C7A4A"/>');
+      p.push('<g class="prop__brush"><rect x="80" y="6" width="3.2" height="15" rx="1.4" fill="#8A6A47" transform="rotate(26 81 13)"/>');
+      p.push('<path d="M80 6l1.6-4 1.6 4z" fill="#A85C63" transform="rotate(26 81 13)"/></g>');
+    } else if (k === 'timeline') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FBF0DA" stroke="#DCC6A4"/>');
+      p.push('<rect x="6" y="6" width="44" height="16" rx="2" fill="#4A3B2E"/>');
+      p.push('<rect class="prop__sweep" x="6" y="6" width="11" height="16" fill="#FFF0C8" opacity=".3"/>');
+      p.push('<rect x="52" y="8" width="16" height="3" rx="1.5" fill="#D9C3A0"/><rect x="52" y="14" width="11" height="3" rx="1.5" fill="#C7AE87"/>');
+      p.push('<rect x="6" y="30" width="88" height="10" rx="3" fill="#EAD9BE"/>');
+      p.push('<rect x="7" y="31.5" width="20" height="7" rx="1.6" fill="#B45309"/>');
+      p.push('<rect x="29" y="31.5" width="28" height="7" rx="1.6" fill="#5C7A4A"/>');
+      p.push('<rect x="59" y="31.5" width="18" height="7" rx="1.6" fill="#A85C63"/>');
+      p.push('<g class="prop__play"><rect x="0" y="27" width="1.8" height="17" fill="#3A2A1C"/><path d="M-3.4 25h8.6l-4.3 4.2z" fill="#3A2A1C"/></g>');
+      p.push('<path d="M6 47h88" stroke="#D9C3A0" stroke-width="1.4" stroke-dasharray="2 4"/>');
+    } else if (k === 'chart') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      p.push('<path d="M10 48h82M10 48V8" stroke="#C9A173" stroke-width="1.4" stroke-linecap="round"/>');
+      p.push('<rect class="prop__bar prop__bar--a" x="16" y="30" width="12" height="18" rx="2" fill="#B45309"/>');
+      p.push('<rect class="prop__bar prop__bar--b" x="34" y="23" width="12" height="25" rx="2" fill="#96690D"/>');
+      p.push('<rect class="prop__bar prop__bar--c" x="52" y="27" width="12" height="21" rx="2" fill="#A8492A"/>');
+      p.push('<rect class="prop__bar prop__bar--d" x="70" y="14" width="12" height="34" rx="2" fill="#5C7A4A"/>');
+      p.push('<path class="prop__trend" d="M18 32 38 24 56 29 78 15" fill="none" stroke="#3A2A1C" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="74" stroke-dashoffset="74"/>');
+      p.push('<path d="M74 13l6 1-2 5z" fill="#3A2A1C"/>');
+    } else if (k === 'checklist') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      [11, 26, 41].forEach(function (y, i) {
+        p.push('<circle cx="14" cy="' + y + '" r="5" fill="none" stroke="#C9A173" stroke-width="1.6"/>');
+        p.push('<path class="prop__tick prop__tick--' + i + '" d="M11 ' + y + 'l2.4 2.4 4-4.6" fill="none" stroke="#5C7A4A" stroke-width="2" stroke-linecap="round" stroke-dasharray="12" stroke-dashoffset="12"/>');
+        p.push('<rect x="24" y="' + (y - 1.6) + '" width="' + (44 - i * 6) + '" height="3.2" rx="1.6" fill="#E2D0B2"/>');
+      });
+      p.push('<circle class="prop__lamp prop__lamp--a" cx="86" cy="13" r="4" fill="#5C7A4A"/>');
+      p.push('<circle class="prop__lamp prop__lamp--b" cx="86" cy="28" r="4" fill="#96690D"/>');
+      p.push('<circle class="prop__lamp prop__lamp--c" cx="86" cy="43" r="4" fill="#A8492A"/>');
+      p.push('<circle class="prop__ping prop__ping--c" cx="86" cy="28" r="5" fill="none" stroke="#B45309" stroke-width="1.6"/>');
+    } else if (k === 'chat') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      p.push('<g class="prop__bubble prop__bubble--a"><rect x="6" y="7" width="52" height="16" rx="8" fill="#F2DEC0"/>');
+      p.push('<path d="M14 23l0 5 5-5z" fill="#F2DEC0"/>');
+      p.push('<circle cx="20" cy="15" r="1.7" fill="#8A6A47"/><circle cx="27" cy="15" r="1.7" fill="#8A6A47"/><circle cx="34" cy="15" r="1.7" fill="#8A6A47"/></g>');
+      p.push('<g class="prop__bubble prop__bubble--b"><rect x="28" y="28" width="62" height="16" rx="8" fill="#CFE0C4"/>');
+      p.push('<path d="M78 44l0 5-5-5z" fill="#CFE0C4"/><rect x="35" y="34" width="38" height="3" rx="1.5" fill="#5C7A4A"/></g>');
+      p.push('<circle class="prop__ping" cx="90" cy="12" r="5" fill="none" stroke="#A8492A" stroke-width="1.8"/>');
+    } else if (k === 'pitch') {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      p.push('<path d="M6 12h20l4 5h64v32H6z" fill="#C79A3C" stroke="#A87A4C" stroke-width="1"/>');
+      p.push('<rect class="prop__page prop__page--a" x="16" y="15" width="66" height="30" rx="2" fill="#FFFDF6" stroke="#E0CBA9"/>');
+      p.push('<rect class="prop__page prop__page--b" x="16" y="15" width="66" height="30" rx="2" fill="#FFF8E8" stroke="#E0CBA9"/>');
+      p.push('<rect x="22" y="20" width="30" height="3" rx="1.5" fill="#C9A173"/>');
+      p.push('<rect x="22" y="26" width="46" height="2.4" rx="1.2" fill="#E2D0B2"/>');
+      p.push('<rect x="22" y="31" width="38" height="2.4" rx="1.2" fill="#E2D0B2"/>');
+      p.push('<circle cx="72" cy="37" r="5" fill="none" stroke="#5C7A4A" stroke-width="1.8"/><path d="M69.6 37l1.8 1.8 3-3.4" fill="none" stroke="#5C7A4A" stroke-width="1.8" stroke-linecap="round"/>');
+    } else {
+      p.push('<rect x="2.5" y="2.5" width="95" height="51" rx="4.5" fill="#FFFCF4" stroke="#DCC6A4"/>');
+      p.push('<rect x="7" y="6" width="58" height="44" rx="2" fill="#FFFDF6" stroke="#E4D2B4"/>');
+      p.push('<rect x="12" y="11" width="34" height="3.2" rx="1.6" fill="#D9C3A0"/>');
+      p.push('<rect x="12" y="18" width="46" height="2.6" rx="1.3" fill="#E7D6BA"/>');
+      p.push('<rect x="12" y="23.5" width="40" height="2.6" rx="1.3" fill="#E7D6BA"/>');
+      p.push('<rect x="12" y="29" width="44" height="2.6" rx="1.3" fill="#E7D6BA"/>');
+      p.push('<path class="prop__write" d="M12 41h40" stroke="#B45309" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="40" stroke-dashoffset="40"/>');
+      p.push('<circle class="prop__lens" cx="75" cy="34" r="10" fill="rgba(255,255,255,.35)" stroke="#8A6A47" stroke-width="2.4"/>');
+      p.push('<path d="M82 41l6 6" stroke="#8A6A47" stroke-width="3" stroke-linecap="round"/>');
+      p.push('<g class="prop__pen"><rect x="48" y="20" width="3" height="17" rx="1.3" fill="#B45309" transform="rotate(24 49 28)"/><path d="M48 37l1.5 3 1.5-3z" fill="#3A2A1C" transform="rotate(24 49 28)"/></g>');
+    }
+    return '<svg class="props props--' + k + '" viewBox="0 0 100 56" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">'
+      + p.join('') + '</svg>';
+  }
+
   /* ── colour helpers ──────────────────────────────────────────────────── */
   function mix(hex, to, k) {
     var A = String(hex).replace('#', '');
@@ -263,8 +391,50 @@
       }
       if (mode === 'up') {
         return '<g class="fig__arm fig__arm--' + side + '">'
-          + '<path d="M67 66c6-3 10-8 10-14" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
-          + '<circle cx="77" cy="49" r="6" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '<path d="M67 66c7-3 12-9 13-16" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<circle cx="80" cy="44" r="6" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '<path d="M84 41l4-4" stroke="' + skinLo + '" stroke-width="2.4" stroke-linecap="round"/>'
+          + '</g>';
+      }
+      if (mode === 'desk' && side === 'l') {
+        /* The working hand rests on the desk while the other one moves. */
+        return '<g class="fig__arm fig__arm--l">'
+          + '<path d="M29 65c-2 7 3 12 10 15" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<circle cx="40" cy="80.4" r="5.6" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '</g>';
+      }
+      if (mode === 'write') {
+        /* Note-taking: the right hand comes down to the desk with a pencil. */
+        return '<g class="fig__arm fig__arm--r">'
+          + '<path d="M67 64c2 8-4 13-12 16" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<circle cx="54" cy="80" r="5.6" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '<g class="fig__pen" transform="rotate(-22 54 80)">'
+          + '<rect x="52.6" y="65" width="3" height="13" rx="1.2" fill="#E0A03A"/>'
+          + '<path d="M52.6 78l1.5 3 1.5-3z" fill="#3A2A1C"/>'
+          + '<rect x="52.6" y="65" width="3" height="2.2" fill="#A85C63"/></g>'
+          + '</g>';
+      }
+      if (mode === 'point') {
+        /* Presenting at the board: the right arm reaches up and out. */
+        return '<g class="fig__arm fig__arm--r">'
+          + '<path d="M67 64c6-3 13-8 17-15" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<circle cx="84" cy="47" r="5.8" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '<path d="M87 44l4-3.4" stroke="' + skinLo + '" stroke-width="2.2" stroke-linecap="round"/>'
+          + '</g>';
+      }
+      if (mode === 'present') {
+        /* Open palm toward the others: a sales gesture. */
+        return '<g class="fig__arm fig__arm--r">'
+          + '<path d="M67 64c7 2 13 6 16 12" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<ellipse cx="84" cy="77" rx="5.6" ry="6.4" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
+          + '<path d="M86 72l3-2M87 76l4 0M86 80l3 2" stroke="' + skinLo + '" stroke-width="1.4" stroke-linecap="round"/>'
+          + '</g>';
+      }
+      if (mode === 'talk') {
+        /* Headset support: one hand up near the cheek. */
+        return '<g class="fig__arm fig__arm--r">'
+          + '<path d="M67 64c3 3 3 9-2 11" stroke="' + shirt + '" stroke-width="12" stroke-linecap="round" fill="none"/>'
+          + '<circle cx="64" cy="71" r="5.4" fill="url(#' + gSkin + ')" stroke="' + skinLo + '" stroke-width=".7"/>'
           + '</g>';
       }
       var sx = side === 'l' ? 29 : 67;
@@ -275,8 +445,10 @@
         + '<ellipse cx="' + (ex + (side === 'l' ? 3.4 : -3.4)) + '" cy="86.6" rx="2.1" ry="2.8" fill="' + skin + '"/>'
         + '</g>';
     }
-    p.push(arm('l', opts.armUp ? 'rest' : (opts.typing ? 'typing' : 'rest')));
-    p.push(arm('r', opts.armUp ? 'up' : (opts.typing ? 'typing' : 'rest')));
+    /* armUp/typing stay for older callers; pose names the department motion. */
+    var pose = opts.pose || (opts.armUp ? 'up' : (opts.typing ? 'type' : 'rest'));
+    p.push(arm('l', pose === 'type' ? 'typing' : (pose === 'rest' || pose === 'up' ? 'rest' : 'desk')));
+    p.push(arm('r', pose === 'type' ? 'typing' : pose));
 
     /* small clay props so the three appointed seats read apart at a glance */
     if (L.prop === 'pencil') {
@@ -293,7 +465,8 @@
         + '<path d="M16.4 86h15M16.4 90h10" stroke="#8A6A47" stroke-width="1.1"/></g>');
     }
 
-    /* head */
+    /* head (wrapped so the whole head can nod while the body stays put) */
+    var headAt = p.length;
     p.push('<ellipse cx="23" cy="42" rx="4.6" ry="5.4" fill="' + skin + '"/>');
     p.push('<ellipse cx="73" cy="42" rx="4.6" ry="5.4" fill="' + skin + '"/>');
     p.push('<path d="M23 40c0-15 11-25 25-25s25 10 25 25c0 13-11 22-25 22S23 53 23 40z" fill="url(#' + gHead + ')" stroke="' + skinLo + '" stroke-width=".7"/>');
@@ -376,8 +549,10 @@
       p.push('<circle cx="31.6" cy="60.4" r="2.4" fill="' + accent + '"/>');
     }
 
-    return '<svg class="fig' + (opts.cls ? ' ' + opts.cls : '') + '" viewBox="0 0 96 122" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">'
-      + p.join('') + '</svg>';
+    return '<svg class="fig fig--' + pose + (opts.cls ? ' ' + opts.cls : '') + '" viewBox="0 0 96 122" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">'
+      + p.slice(0, headAt).join('')
+      + '<g class="fig__head">' + p.slice(headAt).join('') + '</g>'
+      + '</svg>';
   }
 
   function chairSvg() {
@@ -398,21 +573,24 @@
     var opt = o || {};
     var st = opt.state || 'standby';
     var present = !!opt.present;
-    var live = st === 'live';
-    var done = st === 'done';
-    var src = sceneFor(opt.roomId || 'general');
-    var fig = present
+    var away = opt.presence === 'away';
+    var roomId = opt.roomId || 'general';
+    var src = sceneFor(roomId);
+    var work = workFor(roomId);
+    var pose = opt.pose || work.pose;
+    var fig = (present && !away)
       ? figure(opt.look || LOOKS.pm, {
         chair: true,
-        typing: !!opt.typing,
+        pose: pose,
         chairCol: opt.chairCol || '#A87A4C',
         legs: opt.legs !== false
       })
       : '';
     return '<img class="monitor__bg" src="' + src + '" alt="" width="640" height="400" loading="lazy" decoding="async">'
+      + '<span class="monitor__props monitor__props--' + work.kind + '" aria-hidden="true">' + deskProps(work.kind) + '</span>'
       + '<span class="monitor__light" aria-hidden="true"></span>'
       + '<span class="monitor__figure' + (present ? '' : ' is-empty') + '" aria-hidden="true">'
-      + (present ? fig : '') + '</span>'
+      + (present && !away ? fig : (away ? chairSvg() : '')) + '</span>'
       + '<span class="monitor__shade" aria-hidden="true"></span>';
   }
 
@@ -421,9 +599,13 @@
     MEETING_ART: MEETING_ART,
     ROOM_ACCENT: ROOM_ACCENT,
     LOOKS: LOOKS,
+    DEPT_WORK: DEPT_WORK,
+    WORK_KINDS: WORK_KINDS,
     deptAccent: deptAccent,
     sceneFor: sceneFor,
     lookFor: lookFor,
+    workFor: workFor,
+    deskProps: deskProps,
     figure: figure,
     chair: chairSvg,
     scene: scene,

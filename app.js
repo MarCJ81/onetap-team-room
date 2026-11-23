@@ -62,6 +62,7 @@
   };
   var saveTimer = null;
   var toastTimer = null;
+  var arriveTimer = null;
 
   /* ── storage ─────────────────────────────────────────────────────────── */
 
@@ -1004,24 +1005,29 @@
     return n;
   }
 
-  function monitorBadge(st) {
+  function monitorBadge(st, away) {
     if (st === 'live') return t('hq.badge.onAir');
+    if (away) return t('hq.badge.away');
     if (st === 'done') return t('hq.badge.done');
     return t('hq.badge.standby');
   }
 
-  function seatBadge(st) {
+  function seatBadge(st, inRoom) {
     if (st === 'live') return t('hq.badge.onAir');
     if (st === 'done') return t('hq.badge.doneCheck');
-    if (st === 'wait') return t('hq.seat.wait');
+    if (st === 'wait') return inRoom ? t('hq.seat.listen') : t('hq.seat.wait');
     return t('hq.seat.empty');
   }
 
   /* One department card = one clay diorama room (local WebP) with the clay
-     figure of whoever holds that monitor sitting in it right now. */
-  function monitorHtml(meta, snap, byId) {
+     figure of whoever holds that monitor working at its desk, plus the animated
+     clay desk widget of that department (board / code / palette / timeline /
+     chart / checklist / chat ping / proposal). While the team is in the central
+     meeting room the desk is empty and the card says so (`is-away`). */
+  function monitorHtml(meta, snap, byId, presence) {
     var st = snap.monitors[meta.id] || 'standby';
     var holder = snap.holders[meta.id] || null;
+    var away = !!holder && presence === 'meeting';
     var role = holder ? byId[holder.roleId] : null;
     var r = state.rooms[meta.id] || { messages: [], items: [] };
     var items = r.items || [];
@@ -1038,6 +1044,7 @@
     }
     var line;
     if (st === 'live') line = (holder && holder.bubble) || t('hq.room.writing', { name: holder ? holder.name : '' });
+    else if (away) line = t('hq.monitor.inMeeting');
     else if (st === 'done' && lastTurn) line = previewLine(lastTurn);
     else if (st === 'done') line = t('hq.monitor.reported', { n: items.length });
     else if (items.length) line = t('hq.monitor.pending', { n: items.length - doneItems });
@@ -1046,33 +1053,159 @@
     var holdName = holder ? holder.name : label;
     var accent = holder ? holder.accent : deptAccent(meta.id);
     var look = lookFor(role || { kind: 'pm', accent: accent });
-    return '<li class="monitor is-' + st + (meta.id === state.room ? ' is-current' : '') + '" data-monitor="' + esc(meta.id) + '" data-state="' + st + '">'
+    var cls = 'monitor is-' + st
+      + (away ? ' is-away' : (holder ? ' is-working' : ' is-nobody'))
+      + (meta.id === state.room ? ' is-current' : '');
+    var sig = [st, presence, holder ? holder.roleId : '', label, holdName, line, doneItems, items.length,
+      meta.id === state.room ? 1 : 0, lang(), away ? 1 : 0].join('|');
+    return '<li class="' + cls + '" data-monitor="' + esc(meta.id) + '" data-state="' + st
+      + '" data-presence="' + (away ? 'away' : 'desk') + '" data-sig="' + esc(sig) + '">'
       + '<div class="monitor__scene">'
-      + wsScene({ roomId: meta.id, accent: accent, look: look, present: !!holder, state: st })
+      + wsScene({ roomId: meta.id, accent: accent, look: look, present: !!holder, state: st, presence: away ? 'away' : 'work' })
       + (st === 'live' ? '<span class="monitor__say" aria-hidden="true">' + esc(line) + '</span>' : '')
+      + (away ? '<span class="monitor__away" aria-hidden="true">' + esc(t('hq.badge.away')) + '</span>' : '')
       + '<span class="monitor__head"><span class="monitor__glyph" aria-hidden="true">' + esc(String(meta.glyph || '').slice(0, 1)) + '</span>'
       + '<span class="monitor__name">' + esc(label) + '</span></span>'
       + '</div>'
       + '<div class="monitor__plate"><span class="monitor__role">' + esc(holdName) + '</span>'
       + '<span class="monitor__line">' + esc(line) + '</span></div>'
-      + '<div class="monitor__foot"><span class="monitor__badge"><i aria-hidden="true"></i>' + esc(monitorBadge(st)) + '</span>'
+      + '<div class="monitor__foot"><span class="monitor__badge"><i aria-hidden="true"></i>' + esc(monitorBadge(st, away)) + '</span>'
       + '<span class="monitor__stat">' + esc(t('hq.monitor.items', { d: doneItems, t: items.length })) + '</span></div>'
       + '</li>';
   }
 
   /* A seat at the clay meeting table: a figure on a stool, name and state
-     under it. Before the meeting starts the stool is empty. */
-  function seatHtml(seat, byId, front) {
+     under it. Before the meeting starts — and once it ends and everyone walks
+     back to their department — the stool is empty. */
+  function seatHtml(seat, byId, front, presence, index) {
     var role = byId[seat.roleId];
     var look = lookFor(role || { kind: 'pm', accent: seat.accent });
-    var up = seat.state === 'live';
-    var fig = seat.state === 'empty'
-      ? chairSvg()
-      : figSvg(look, { armUp: up, chair: true, chairCol: '#A87A4C', seatFront: !!front });
-    return '<li class="seat is-' + seat.state + '" data-seat="' + esc(seat.roleId) + '" data-state="' + seat.state + '">'
+    var live = seat.state === 'live';
+    var inRoom = presence === 'meeting' && seat.state !== 'empty';
+    /* The speaker presents (hand up); everyone else listens and takes notes. */
+    var fig = inRoom
+      ? figSvg(look, { pose: live ? 'up' : 'write', chair: true, chairCol: '#A87A4C' })
+      : chairSvg();
+    var cls = 'seat is-' + seat.state
+      + (inRoom ? ' is-in' : ' is-out')
+      + (live ? ' is-speak' : (inRoom ? ' is-listen' : ''));
+    var sig = [seat.state, presence, seat.name, seat.accent, index].join('|');
+    return '<li class="' + cls + '" data-seat="' + esc(seat.roleId) + '" data-state="' + seat.state
+      + '" data-presence="' + (inRoom ? 'room' : 'desk') + '" data-sig="' + esc(sig) + '" style="--i:' + index + '">'
       + '<span class="seat__avatar" style="--role:' + esc(seat.accent) + '" aria-hidden="true">' + fig + '</span>'
       + '<span class="seat__body"><span class="seat__name">' + esc(seat.name) + '</span>'
-      + '<span class="seat__badge">' + esc(seatBadge(seat.state)) + '</span></span></li>';
+      + '<span class="seat__badge">' + esc(seatBadge(seat.state, inRoom)) + '</span></span>'
+      + '</li>';
+  }
+
+  /* ── meeting assembly: figures walk from their desks to the table ─────── */
+
+  function rectOf(el) {
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    if (!r || (!r.width && !r.height)) return null;
+    return { left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+  }
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  /* Where each role's figure is right now, measured before the repaint. */
+  function captureFigures(presence, snap) {
+    var map = {};
+    snap.seats.forEach(function (s) {
+      var rect = null;
+      if (presence === 'meeting') {
+        rect = rectOf(document.querySelector('.seat[data-seat="' + s.roleId + '"] .seat__avatar .fig'));
+      } else {
+        var mon = document.querySelector('.monitor[data-monitor="' + s.roomId + '"]');
+        rect = rectOf(mon && mon.querySelector('.monitor__figure .fig'))
+          || rectOf(mon && mon.querySelector('.monitor__scene'));
+      }
+      if (rect) map[s.roleId] = rect;
+    });
+    return map;
+  }
+
+  /* Where each figure should land after the repaint. */
+  function captureTargets(presence, snap) {
+    var map = {};
+    snap.seats.forEach(function (s) {
+      if (presence === 'meeting') {
+        var seat = document.querySelector('.seat[data-seat="' + s.roleId + '"] .seat__avatar');
+        var r = rectOf(seat);
+        if (r) map[s.roleId] = r;
+      } else {
+        var mon = document.querySelector('.monitor[data-monitor="' + s.roomId + '"] .monitor__scene');
+        var rect = rectOf(mon);
+        if (rect) map[s.roleId] = rect;
+      }
+    });
+    return map;
+  }
+
+  function figureForRole(roleId, accent) {
+    var role = resolvedRoles().filter(function (r) { return r.id === roleId; })[0];
+    return figSvg(lookFor(role || { kind: 'pm', accent: accent }), { pose: 'type' });
+  }
+
+  /* Spawn a small copy of each figure on the stage and fly it to its target.
+     Returns the number of travellers (0 when motion is reduced). */
+  function playAssembly(fromMap, toMap, presence) {
+    var layer = $('#hqTravel');
+    if (!layer) return 0;
+    layer.innerHTML = '';
+    if (!fromMap || reducedMotion()) return 0;
+    var lr = layer.getBoundingClientRect();
+    var pairs = [];
+    Object.keys(toMap).forEach(function (id) {
+      var from = fromMap[id];
+      var to = toMap[id];
+      if (!from || !to) return;
+      pairs.push({ id: id, from: from, to: to });
+    });
+    pairs.forEach(function (pair, i) {
+      var el = document.createElement('span');
+      el.className = 'traveler' + (presence === 'meeting' ? ' traveler--in' : ' traveler--out');
+      el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = figureForRole(pair.id);
+      var w = Math.max(26, Math.min(pair.from.width, 58));
+      el.style.width = w + 'px';
+      el.style.left = (pair.from.cx - lr.left) + 'px';
+      el.style.top = (pair.from.cy - lr.top) + 'px';
+      layer.appendChild(el);
+      var dx = pair.to.cx - pair.from.cx;
+      var dy = pair.to.cy - pair.from.cy;
+      var hop = presence === 'meeting' ? -Math.min(52, 26 + Math.abs(dx) * 0.06) : 16;
+      var frames = [
+        { transform: 'translate(-50%,-50%) translate(0px,0px) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) translate(' + (dx * 0.5).toFixed(1) + 'px,' + (dy * 0.5 + hop).toFixed(1) + 'px) scale(.86)', opacity: 1, offset: 0.55 },
+        { transform: 'translate(-50%,-50%) translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(.72)', opacity: presence === 'meeting' ? 1 : 0 }
+      ];
+      var timing = { duration: 680, delay: i * 55, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'both' };
+      if (el.animate) {
+        var anim = el.animate(frames, timing);
+        anim.onfinish = function () { if (el.parentNode) el.parentNode.removeChild(el); };
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    setTimeout(function () { if (layer) layer.innerHTML = ''; }, 2600);
+    return pairs.length;
+  }
+
+  /* Replace a monitor/seat only when what it shows changed, so its clay
+     animation keeps running instead of restarting on every repaint. */
+  function mountItem(col, el, html) {
+    var tmp = document.createElement('ul');
+    tmp.innerHTML = html;
+    var next = tmp.firstElementChild;
+    if (!next) return el;
+    if (el && el.getAttribute('data-sig') === next.getAttribute('data-sig')) return el;
+    if (el && el.parentNode) { el.parentNode.replaceChild(next, el); return next; }
+    col.appendChild(next);
+    return next;
   }
 
   function renderLive() {
@@ -1095,20 +1228,71 @@
       });
       if (snap.speaking) snap.phase = 'live';
     }
+    var presence = snap.phase === 'live' ? 'meeting' : 'desks';
+    var stage = $('#hqStage');
+    var prevPresence = stage ? stage.getAttribute('data-presence') : null;
+    var flip = !!prevPresence && prevPresence !== presence;
+    var fromMap = flip ? captureFigures(prevPresence, snap) : null;
     var roles = resolvedRoles();
     var byId = {};
     roles.forEach(function (r) { byId[r.id] = r; });
     var rooms = allRooms();
     var half = Math.ceil(rooms.length / 2);
-    left.innerHTML = rooms.slice(0, half).map(function (r) { return monitorHtml(r, snap, byId); }).join('');
-    right.innerHTML = rooms.slice(half).map(function (r) { return monitorHtml(r, snap, byId); }).join('');
+    var roomKey = rooms.map(function (r) { return r.id; }).join(',');
+    if (left.getAttribute('data-rooms') !== roomKey) {
+      left.innerHTML = '';
+      right.innerHTML = '';
+      left.setAttribute('data-rooms', roomKey);
+    }
+    var seatKey = snap.seats.map(function (s) { return s.roleId; }).join(',');
+    if ($('#mroomTop') && $('#mroomTop').getAttribute('data-seats') !== seatKey) {
+      $('#mroomTop').innerHTML = '';
+      $('#mroomBottom').innerHTML = '';
+      $('#mroomTop').setAttribute('data-seats', seatKey);
+    }
+
+    rooms.forEach(function (meta, i) {
+      var col = i < half ? left : right;
+      var el = left.querySelector('[data-monitor="' + meta.id + '"]') || right.querySelector('[data-monitor="' + meta.id + '"]');
+      mountItem(col, el, monitorHtml(meta, snap, byId, presence));
+    });
 
     var seats = snap.seats;
     var cut = Math.ceil(seats.length / 2);
     var top = $('#mroomTop');
     var bottom = $('#mroomBottom');
-    if (top) top.innerHTML = seats.slice(0, cut).map(function (s) { return seatHtml(s, byId, false); }).join('');
-    if (bottom) bottom.innerHTML = seats.slice(cut).map(function (s) { return seatHtml(s, byId, true); }).join('');
+    if (top) {
+      seats.slice(0, cut).forEach(function (s, i) {
+        var el = top.querySelector('[data-seat="' + s.roleId + '"]') || bottom.querySelector('[data-seat="' + s.roleId + '"]');
+        mountItem(top, el, seatHtml(s, byId, false, presence, i));
+      });
+    }
+    if (bottom) {
+      seats.slice(cut).forEach(function (s, i) {
+        var el = bottom.querySelector('[data-seat="' + s.roleId + '"]') || top.querySelector('[data-seat="' + s.roleId + '"]');
+        mountItem(bottom, el, seatHtml(s, byId, true, presence, cut + i));
+      });
+    }
+
+    if (stage) {
+      stage.setAttribute('data-presence', presence);
+      if (flip) {
+        var toMap = captureTargets(presence, snap);
+        var moved = playAssembly(fromMap, toMap, presence);
+        stage.setAttribute('data-assembly', presence === 'meeting' ? 'in' : 'out');
+        stage.setAttribute('data-assembly-count', String(moved));
+        stage.setAttribute('data-assembly-at', String(Date.now()));
+        if (presence === 'meeting') {
+          stage.setAttribute('data-arriving', '1');
+          clearTimeout(arriveTimer);
+          arriveTimer = setTimeout(function () {
+            var s = $('#hqStage');
+            if (s) s.removeAttribute('data-arriving');
+          }, 1500);
+        }
+      }
+    }
+
 
     var mroom = $('#mroom');
     if (mroom) mroom.setAttribute('data-state', snap.phase);
@@ -1135,6 +1319,17 @@
         note.hidden = true;
         var airWho = $('#mroomAirWho');
         if (airWho) airWho.textContent = who ? ' · ' + who : '';
+        /* The bubble follows the speaker: it hovers over that seat. */
+        var seatEl = snap.speaking && $('#mroom .seat[data-seat="' + snap.speaking.roleId + '"]');
+        var floorEl = $('#mroom .mroom__floor');
+        if (seatEl && floorEl) {
+          var sr = seatEl.getBoundingClientRect();
+          var fr = floorEl.getBoundingClientRect();
+          if (fr.width) {
+            var pct = ((sr.left + sr.width / 2) - fr.left) / fr.width * 100;
+            air.style.left = Math.max(20, Math.min(80, Math.round(pct))) + '%';
+          }
+        }
         var bubbleEl = $('#mroomBubble');
         if (bubbleEl) bubbleEl.textContent = '“' + bubble + '”';
       } else {
