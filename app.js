@@ -2594,6 +2594,7 @@
         var next = b.getAttribute('data-lang');
         if (next === state.lang) return;
         state.lang = next;
+        try { localStorage.setItem('onetap_lang', next); } catch (e) { /* ignore */ }
         save();
         renderAll();
         toast(t('toast.lang'));
@@ -3037,8 +3038,24 @@
 
   /* ── boot ────────────────────────────────────────────────────────────── */
 
+  /* Language: ?lang= → localStorage('onetap_lang') → navigator.language, and
+     the app's own saved choice is kept in step. */
+  function pickLang() {
+    try {
+      var q = new URLSearchParams(location.search).get('lang');
+      if (q === 'ko' || q === 'en') return q;
+    } catch (e) { /* older engines */ }
+    try {
+      var saved = localStorage.getItem('onetap_lang');
+      if (saved === 'ko' || saved === 'en') return saved;
+    } catch (e) { /* private mode */ }
+    var nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    return nav.indexOf('ko') === 0 ? 'ko' : 'en';
+  }
+
   function boot() {
     load();
+    state.lang = pickLang();
     bind();
     renderAll();
     setGenerating(false);
